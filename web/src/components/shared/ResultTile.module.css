@@ -1,0 +1,29 @@
+.tile {
+  background: var(--discord-bg-raised);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem;
+}
+
+.label {
+  color: var(--discord-text-subtle);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.value {
+  color: var(--discord-text);
+  font-size: 1.1rem;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.monospace {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.95rem;
+}

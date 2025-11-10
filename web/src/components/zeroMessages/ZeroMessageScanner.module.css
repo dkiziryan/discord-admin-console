@@ -1,0 +1,74 @@
+.controlPanel {
+  background: var(--discord-bg-raised);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+}
+
+.controlPanel label {
+  color: var(--discord-text);
+  font-weight: 700;
+}
+
+.controlPanel textarea {
+  background: var(--discord-bg-deep);
+  border: 1px solid var(--discord-border-strong);
+  border-radius: var(--discord-radius-md);
+  color: inherit;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  min-height: 160px;
+  padding: 0.75rem;
+  resize: vertical;
+}
+
+.dryRunToggle {
+  align-items: center;
+  color: var(--discord-text);
+  display: flex;
+  font-weight: 700;
+  gap: 0.5rem;
+}
+
+.dryRunToggle input {
+  accent-color: var(--discord-blurple);
+  height: 18px;
+  width: 18px;
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.actions button[type="submit"] {
+  background: var(--discord-blurple);
+  border: none;
+  border-radius: var(--discord-radius-sm);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 38px;
+  padding: 0.65rem 1rem;
+}
+
+.actions button[type="submit"]:disabled {
+  cursor: progress;
+  opacity: 0.55;
+}
+
+.scanProgress {
+  margin-top: 0.75rem;
+  width: 100%;
+}
+
+.elapsedTime {
+  color: var(--discord-text-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin: 0 0 0.6rem;
+}

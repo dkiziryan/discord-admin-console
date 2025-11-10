@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AppRole {
+  admin
+}
+
+enum JobType {
+  zero_scan
+  inactive_scan
+  kick_csv
+  cleanup_roles
+  archive_channels
+}
+
+enum JobStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum ArtifactKind {
+  csv
+}
+
+model User {
+  id            String           @id @default(cuid())
+  discordUserId String           @unique
+  username      String
+  avatarUrl     String?
+  lastLoginAt   DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  accessGrants  AuthorizedUser[]
+  jobs          Job[]
+  auditLogs     AuditLog[]
+}
+
+model AuthorizedUser {
+  id        String   @id @default(cuid())
+  userId    String
+  role      AppRole  @default(admin)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+}
+
+model GuildSettings {
+  id                         String   @id @default(cuid())
+  discordGuildId             String   @unique
+  inactiveExcludedCategories Json
+  defaultTargetChannels      Json
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
+
+model Job {
+  id              String      @id @default(cuid())
+  type            JobType
+  status          JobStatus   @default(queued)
+  createdByUserId String
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  inputJson       Json?
+  resultJson      Json?
+  errorMessage    String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  createdByUser   User        @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  artifacts       Artifact[]
+
+  @@index([createdByUserId])
+  @@index([type, status])
+}
+
+model Artifact {
+  id          String       @id @default(cuid())
+  jobId       String
+  kind        ArtifactKind @default(csv)
+  filename    String
+  storagePath String
+  createdAt   DateTime     @default(now())
+  job         Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}

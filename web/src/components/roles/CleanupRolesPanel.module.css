@@ -1,0 +1,67 @@
+.panel {
+  background: var(--discord-bg-raised);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 3rem;
+  padding: 1.75rem;
+}
+
+.header h2 {
+  font-size: 1.8rem;
+  margin: 0 0 0.35rem;
+}
+
+.header p {
+  color: var(--discord-text-muted);
+  margin: 0;
+}
+
+.card {
+  background: var(--discord-bg-floating);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.card p {
+  color: var(--discord-text-muted);
+  margin: 0;
+}
+
+.preview,
+.result {
+  background: var(--discord-bg-deep);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.list {
+  color: var(--discord-text);
+  line-height: 1.5;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.confirmActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.result ul {
+  color: var(--discord-text);
+  line-height: 1.5;
+  margin: 0;
+  padding-left: 1.25rem;
+}

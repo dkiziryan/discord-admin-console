@@ -1,0 +1,46 @@
+.title {
+  color: var(--discord-text);
+  font-weight: 700;
+  margin: 0 0 0.45rem;
+}
+
+.bar {
+  background: var(--discord-bg-deep);
+  border-radius: 9999px;
+  height: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.fill {
+  background: var(--discord-blurple);
+  border-radius: inherit;
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top: 0;
+  transition: width 0.3s ease;
+}
+
+.loop {
+  animation: progress-loop 1.2s ease-in-out infinite;
+  width: 40%;
+}
+
+.note {
+  color: var(--discord-text-muted);
+  font-size: 0.9rem;
+  margin: 0.35rem 0 0;
+}
+
+@keyframes progress-loop {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(25%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}

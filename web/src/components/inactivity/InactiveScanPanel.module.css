@@ -1,0 +1,72 @@
+.panel {
+  background: var(--discord-bg-raised);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 3rem;
+  padding: 1.75rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form label {
+  color: var(--discord-text);
+  display: flex;
+  flex-direction: column;
+  font-weight: 700;
+  gap: 0.35rem;
+}
+
+.form input,
+.form textarea {
+  background: var(--discord-bg-deep);
+  border: 1px solid var(--discord-border-strong);
+  border-radius: var(--discord-radius-md);
+  color: inherit;
+  padding: 0.6rem 0.75rem;
+}
+
+.form small {
+  color: var(--discord-text-subtle);
+  font-weight: 400;
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.scanProgress {
+  margin-top: 0.75rem;
+  width: 100%;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.skipped {
+  color: var(--discord-text-muted);
+  margin: 0;
+}
+
+.preview ul {
+  color: var(--discord-text);
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.previewMore {
+  color: var(--discord-text-muted);
+  margin-top: 0.35rem;
+}

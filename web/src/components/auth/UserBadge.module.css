@@ -1,0 +1,39 @@
+.badge {
+  align-items: center;
+  background: var(--discord-bg-floating);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-lg);
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.75rem;
+  padding: 0.65rem;
+}
+
+.avatar {
+  border-radius: 9999px;
+  height: 38px;
+  width: 38px;
+}
+
+.label {
+  color: var(--discord-text-subtle);
+  display: block;
+  font-size: 0.75rem;
+}
+
+.badge button {
+  background: var(--discord-bg-deep);
+  border: 1px solid var(--discord-border-strong);
+  border-radius: var(--discord-radius-sm);
+  color: var(--discord-text);
+  cursor: pointer;
+  font-weight: 800;
+  padding: 0.55rem 0.85rem;
+}
+
+@media (max-width: 760px) {
+  .badge {
+    justify-content: space-between;
+    width: 100%;
+  }
+}

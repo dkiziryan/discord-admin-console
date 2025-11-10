@@ -1,0 +1,42 @@
+{
+  "name": "server-admin-console",
+  "version": "1.0.0",
+  "description": "Discord bot, API, and React dashboard for moderation and server management workflows.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "prisma generate && tsc && npm run build:web",
+    "postinstall": "prisma generate",
+    "test": "rm -rf dist-test && tsc -p tsconfig.test.json && find dist-test/src -name '*.test.js' -print | sort | xargs node --test && npm ci --prefix web && npm run --prefix web test",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "dev:web": "npm run --prefix web dev",
+    "build:web": "npm ci --prefix web && npm run --prefix web build",
+    "preview:web": "npm run --prefix web preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.7.0",
+    "@prisma/client": "^7.7.0",
+    "connect-pg-simple": "^10.0.0",
+    "cors": "^2.8.5",
+    "discord.js": "^14.24.2",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-session": "^1.19.0",
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/connect-pg-simple": "^7.0.3",
+    "@types/express": "^5.0.5",
+    "@types/express-session": "^1.18.2",
+    "@types/node": "^24.12.2",
+    "prisma": "^7.7.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,158 @@
+.panel {
+  background: var(--discord-bg-raised);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 3rem;
+  padding: 1.75rem;
+}
+
+.header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.csvList {
+  background: var(--discord-bg-floating);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-md);
+  flex: 2 1 360px;
+  padding: 1rem;
+}
+
+.csvList ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.empty {
+  color: var(--discord-text-muted);
+  margin: 0;
+}
+
+.csvItem label {
+  align-items: flex-start;
+  cursor: pointer;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.csvItem input {
+  accent-color: var(--discord-blurple);
+  margin-top: 0.25rem;
+}
+
+.csvItem span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.csvItem small {
+  color: var(--discord-text-subtle);
+}
+
+.actions {
+  background: var(--discord-bg-floating);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-md);
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.dryRunToggle {
+  align-items: center;
+  color: var(--discord-text);
+  display: flex;
+  font-weight: 700;
+  gap: 0.5rem;
+}
+
+.dryRunToggle input {
+  accent-color: var(--discord-blurple);
+  height: 18px;
+  width: 18px;
+}
+
+.kickButton {
+  background: var(--discord-red);
+  border: none;
+  border-radius: var(--discord-radius-sm);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.65rem 1rem;
+}
+
+.kickButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.hint {
+  color: var(--discord-text-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.results {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.resultCard {
+  background: var(--discord-bg-floating);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem;
+}
+
+.resultCard header {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.badge {
+  background: rgba(88, 101, 242, 0.22);
+  border: 1px solid rgba(88, 101, 242, 0.42);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+}
+
+.resultCard ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.resultCard details {
+  color: var(--discord-text-muted);
+  font-size: 0.9rem;
+}
