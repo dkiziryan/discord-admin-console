@@ -31,6 +31,12 @@ import {
   mapInactiveResultToResponse,
 } from "./services/inactivity/inactiveScanner";
 import {
+  completeJob,
+  createRunningJob,
+  failJob,
+  registerCsvArtifact,
+} from "./services/jobs/jobService";
+import {
   collectInactiveExcludedCategories,
   readGuildSettings,
 } from "./services/guildSettings";
@@ -775,6 +781,22 @@ export const startHttpServer = (
       targetChannelNames = settings.defaultTargetChannels;
     }
 
+    let jobId: string;
+    try {
+      jobId = await createRunningJob({
+        discordUserId,
+        inputJson: {
+          dryRun,
+          guildId: activeGuildId,
+          targetChannelNames,
+        },
+        type: "zero_scan",
+      });
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+      return;
+    }
+
     const totalChannels = targetChannelNames.length;
     updateScanStatus(activeGuildId, {
       inProgress: true,
@@ -838,13 +860,25 @@ export const startHttpServer = (
 
       try {
         const result = await scanZeroMessageUsers(client, scanOptions);
+        const responseData = mapResultToResponse(result);
         const response = {
           message: dryRun
             ? "Dry run complete. Empty CSV generated."
             : `Scan complete. Found ${result.zeroMessageUsers.length} users with zero messages.`,
           channels: targetChannelNames,
-          data: mapResultToResponse(result),
+          data: responseData,
         };
+        await registerCsvArtifact({
+          csvPath: result.csvPath,
+          jobId,
+        });
+        await completeJob(jobId, {
+          resultJson: {
+            channels: targetChannelNames,
+            data: responseData,
+            message: response.message,
+          },
+        });
 
         updateScanStatus(activeGuildId, {
           inProgress: false,
@@ -870,6 +904,14 @@ export const startHttpServer = (
             errorMessage: null,
             result: null,
           });
+          await failJob(jobId, {
+            errorMessage: error.message,
+            status: "cancelled",
+          }).catch((jobError) => {
+            console.error(
+              `Failed to persist cancelled zero-message job ${jobId}: ${(jobError as Error).message}`,
+            );
+          });
           return;
         }
 
@@ -886,6 +928,14 @@ export const startHttpServer = (
           errorMessage,
           lastMessage: "Scan failed.",
           result: null,
+        });
+        await failJob(jobId, {
+          errorMessage,
+          status: "failed",
+        }).catch((jobError) => {
+          console.error(
+            `Failed to persist failed zero-message job ${jobId}: ${(jobError as Error).message}`,
+          );
         });
       } finally {
         isProcessingByGuild.set(activeGuildId, false);
@@ -942,6 +992,22 @@ export const startHttpServer = (
       requestCategories,
     );
 
+    let jobId: string;
+    try {
+      jobId = await createRunningJob({
+        discordUserId,
+        inputJson: {
+          days: requestedDays,
+          excludedCategories,
+          guildId: activeGuildId,
+        },
+        type: "inactive_scan",
+      });
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+      return;
+    }
+
     updateInactiveStatus(activeGuildId, {
       inProgress: true,
       currentChannel: null,
@@ -996,9 +1062,22 @@ export const startHttpServer = (
         errorMessage: null,
       });
 
+      const responseData = mapInactiveResultToResponse(result);
+      const message = `Inactive scan complete. Found ${result.inactiveMembers.length} inactive users.`;
+      await registerCsvArtifact({
+        csvPath: result.csvPath,
+        jobId,
+      });
+      await completeJob(jobId, {
+        resultJson: {
+          data: responseData,
+          message,
+        },
+      });
+
       res.json({
-        message: `Inactive scan complete. Found ${result.inactiveMembers.length} inactive users.`,
-        data: mapInactiveResultToResponse(result),
+        message,
+        data: responseData,
       });
     } catch (error) {
       if (error instanceof ScanCancelledError) {
@@ -1014,6 +1093,14 @@ export const startHttpServer = (
           lastMessage: "Inactive scan cancelled by user.",
           errorMessage: null,
         });
+        await failJob(jobId, {
+          errorMessage: error.message,
+          status: "cancelled",
+        }).catch((jobError) => {
+          console.error(
+            `Failed to persist cancelled inactive scan job ${jobId}: ${(jobError as Error).message}`,
+          );
+        });
         res.status(499).json({ message: error.message });
       } else {
         const errorMessage = (error as Error).message;
@@ -1027,6 +1114,14 @@ export const startHttpServer = (
           finishedAt: new Date().toISOString(),
           lastMessage: "Inactive scan failed.",
           errorMessage,
+        });
+        await failJob(jobId, {
+          errorMessage,
+          status: "failed",
+        }).catch((jobError) => {
+          console.error(
+            `Failed to persist failed inactive scan job ${jobId}: ${(jobError as Error).message}`,
+          );
         });
         res.status(500).json({ message: errorMessage });
       }
