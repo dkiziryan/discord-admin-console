@@ -18,6 +18,7 @@ import type {
 import {
   buildExcludedCategorySet,
   fetchGuild,
+  resolveScanTargetLabel,
   resolveTargetChannels,
   scanChannelHistory,
   buildSkippedPreview,
@@ -159,10 +160,11 @@ export const scanZeroMessageUsers = async (
     channels: matchedTargetChannels,
     matchedChannelCount,
     skippedChannels,
-  } = resolveTargetChannels(
+  } = await resolveTargetChannels(
     guild,
     targetChannelNames,
     buildExcludedCategorySet(excludedCategories),
+    throwIfCancelled,
   );
 
   const hasExplicitTargetChannels = targetChannelNames.some(
@@ -178,6 +180,7 @@ export const scanZeroMessageUsers = async (
   }
 
   const targetChannels = matchedTargetChannels.filter((channel) => {
+    const channelLabel = resolveScanTargetLabel(channel);
     const me = guild.members.me;
     const canReadHistory = me
       ? channel.permissionsFor(me)?.has("ReadMessageHistory") &&
@@ -185,7 +188,7 @@ export const scanZeroMessageUsers = async (
       : true;
 
     if (!canReadHistory) {
-      skippedChannels.push(`${channel.name} (missing history permission)`);
+      skippedChannels.push(`${channelLabel} (missing history permission)`);
       return false;
     }
 

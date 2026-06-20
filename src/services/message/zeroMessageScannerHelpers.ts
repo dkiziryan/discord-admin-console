@@ -1,10 +1,21 @@
 import {
+  AnyThreadChannel,
   ChannelType,
+  Collection,
+  GuildTextBasedChannel,
   type Client,
   type Guild,
-  type TextChannel,
 } from "discord.js";
 import type { ChannelScanCoverage, LastActivityType } from "../../models/types";
+
+type ThreadFetchParent = GuildTextBasedChannel & {
+  threads: {
+    fetchActive?: () => Promise<{ threads: Collection<string, AnyThreadChannel> }>;
+    fetchArchived?: (
+      options?: Record<string, unknown>,
+    ) => Promise<{ threads: Collection<string, AnyThreadChannel>; hasMore?: boolean }>;
+  };
+};
 
 export const fetchGuild = async (client: Client, guildId: string): Promise<Guild> => {
   try {
@@ -26,7 +37,30 @@ export const buildExcludedCategorySet = (categories: string[]): Set<string> => {
   );
 };
 
-const resolveCategoryName = (channel: TextChannel): string | null => {
+const isPublicThread = (channel: unknown): channel is AnyThreadChannel => {
+  const kind = (channel as { type?: ChannelType }).type;
+  return (
+    kind === ChannelType.PublicThread ||
+    kind === ChannelType.AnnouncementThread
+  );
+};
+
+const hasThreadManager = (
+  channel: unknown,
+): channel is ThreadFetchParent => {
+  const kind = (channel as { type?: ChannelType }).type;
+  const threadManager = (channel as { threads?: unknown }).threads;
+  return Boolean(
+    threadManager &&
+      (kind === ChannelType.GuildText ||
+        kind === ChannelType.GuildAnnouncement ||
+        kind === ChannelType.GuildForum),
+  );
+};
+
+const resolveCategoryName = (
+  channel: GuildTextBasedChannel | AnyThreadChannel,
+): string | null => {
   const parent = channel.parent;
   if (!parent) {
     return null;
@@ -36,54 +70,160 @@ const resolveCategoryName = (channel: TextChannel): string | null => {
     return parent.name;
   }
 
-  return null;
+  return parent.parent?.type === ChannelType.GuildCategory
+    ? parent.parent.name
+    : null;
 };
 
-export const resolveTargetChannels = (
+export const resolveScanTargetLabel = (
+  channel: GuildTextBasedChannel | AnyThreadChannel,
+): string => {
+  if (isPublicThread(channel)) {
+    return channel.parent?.name
+      ? `thread ${channel.parent.name} / ${channel.name}`
+      : `thread ${channel.name}`;
+  }
+
+  return channel.name;
+};
+
+const fetchArchivedPublicThreads = async (
+  channel: ThreadFetchParent,
+  onCheckCancelled?: () => void,
+): Promise<AnyThreadChannel[]> => {
+  const threads: AnyThreadChannel[] = [];
+  let before: Date | undefined;
+
+  while (true) {
+    onCheckCancelled?.();
+    const result = await channel.threads.fetchArchived?.({
+      type: "public",
+      fetchAll: true,
+      ...(before ? { before } : {}),
+    });
+
+    if (!result || result.threads.size === 0) {
+      break;
+    }
+
+    const page = Array.from(result.threads.values()).filter(isPublicThread);
+    threads.push(...page);
+
+    if (!result.hasMore || page.length === 0) {
+      break;
+    }
+
+    const oldestThread = page[page.length - 1];
+    const archivedAt =
+      oldestThread.archiveTimestamp === null
+        ? null
+        : new Date(oldestThread.archiveTimestamp);
+    if (!archivedAt) {
+      break;
+    }
+
+    before = archivedAt;
+  }
+
+  return threads;
+};
+
+export const resolveTargetChannels = async (
   guild: Guild,
   channelNames: string[],
   excludedCategories: Set<string>,
-): {
-  channels: TextChannel[];
+  onCheckCancelled?: () => void,
+): Promise<{
+  channels: GuildTextBasedChannel[];
   matchedChannelCount: number;
   skippedChannels: string[];
-} => {
+}> => {
   const normalizedTargets = new Set(
     channelNames.map((name) => name.trim().toLowerCase()).filter(Boolean),
   );
   const hasExplicitTargets = normalizedTargets.size > 0;
-  const matched: TextChannel[] = [];
+  const matched: GuildTextBasedChannel[] = [];
   const skippedChannels: string[] = [];
+  const seen = new Set<string>();
   let matchedChannelCount = 0;
 
-  for (const channel of guild.channels.cache.values()) {
-    if (channel?.type === ChannelType.GuildText) {
-      const channelName = channel.name.toLowerCase();
-      if (hasExplicitTargets && !normalizedTargets.has(channelName)) {
-        continue;
-      }
-
-      matchedChannelCount += 1;
-      const categoryName = resolveCategoryName(channel);
-      if (
-        categoryName &&
-        excludedCategories.has(categoryName.trim().toLowerCase())
-      ) {
-        skippedChannels.push(
-          `${channel.name} (excluded category: ${categoryName})`,
-        );
-        continue;
-      }
-
-      matched.push(channel);
+  const considerChannel = (channel: GuildTextBasedChannel | AnyThreadChannel) => {
+    const channelName = channel.name.toLowerCase();
+    const parentName = isPublicThread(channel)
+      ? channel.parent?.name?.toLowerCase()
+      : null;
+    if (
+      hasExplicitTargets &&
+      !normalizedTargets.has(channelName) &&
+      (!parentName || !normalizedTargets.has(parentName))
+    ) {
+      return;
     }
+
+    matchedChannelCount += 1;
+    const targetLabel = resolveScanTargetLabel(channel);
+    const categoryName = resolveCategoryName(channel);
+    if (
+      categoryName &&
+      excludedCategories.has(categoryName.trim().toLowerCase())
+    ) {
+      skippedChannels.push(
+        `${targetLabel} (excluded category: ${categoryName})`,
+      );
+      return;
+    }
+
+    if (seen.has(channel.id)) {
+      return;
+    }
+
+    seen.add(channel.id);
+    matched.push(channel);
+  };
+
+  const addChildThreads = async (channel: unknown) => {
+    onCheckCancelled?.();
+    if (!hasThreadManager(channel)) {
+      return;
+    }
+
+    const activeThreads = await channel.threads
+      .fetchActive?.()
+      .catch(() => null);
+    activeThreads?.threads.forEach((thread) => {
+      if (isPublicThread(thread)) {
+        considerChannel(thread);
+      }
+    });
+
+    const archivedThreads = await fetchArchivedPublicThreads(
+      channel,
+      onCheckCancelled,
+    ).catch(() => []);
+    archivedThreads.forEach(considerChannel);
+  };
+
+  const activeThreads = await guild.channels.fetchActiveThreads().catch(() => null);
+
+  for (const channel of guild.channels.cache.values()) {
+    onCheckCancelled?.();
+    if (channel?.type === ChannelType.GuildText) {
+      considerChannel(channel);
+    }
+    await addChildThreads(channel);
   }
+
+  activeThreads?.threads.forEach((thread) => {
+    if (isPublicThread(thread)) {
+      considerChannel(thread);
+    }
+  });
 
   return { channels: matched, matchedChannelCount, skippedChannels };
 };
 
 export const scanChannelHistory = async (
-  channel: TextChannel,
+  channel: GuildTextBasedChannel,
   remainingIds: Set<string>,
   options: {
     countReactionsAsActivity?: boolean;
@@ -215,7 +355,7 @@ export const scanChannelHistory = async (
   }
 
   return {
-    channelName: channel.name,
+    channelName: resolveScanTargetLabel(channel),
     messagesScanned: totalMessages,
     newestMessageAt:
       newestMessageTimestamp === null
