@@ -28,7 +28,7 @@ For local web development, this URL can be overridden with `VITE_BOT_INVITE_URL`
 
 Available dashboard workflows:
 
-- Scan for zero-message users across selected channels
+- Scan for zero-message users across eligible channels, excluding configured categories
 - Scan for inactive members by time window
 - Kick members from generated CSV exports
 - Preview and delete empty roles
@@ -181,12 +181,12 @@ Do not set `WEB_APP_URL` in Railway. It is for local development.
 - `POST /auth/guild/select`: select the active server for dashboard workflows
 - `POST /auth/logout`: clear the current session
 - `GET /api/health`: readiness probe
-- `GET /api/default-channels`: selected server default channels
+- `GET /api/default-channels`: selected server legacy default target channels
 - `GET /api/inactive-defaults`: selected server inactive category defaults
 - `GET /api/scan-status`: zero-message scan progress
 - `GET /api/inactive-status`: inactive-member scan progress
 - `GET /api/csv-files`: available CSV exports
-- `POST /api/zero-messages`: run zero-message scan
+- `POST /api/zero-messages`: run zero-message scan; blank channel input scans all eligible channels
 - `POST /api/inactive-scan`: run inactive-member scan
 - `POST /api/inactive-channels`: preview or process inactive channels
 - `POST /api/cleanup-roles`: preview or delete zero-member roles

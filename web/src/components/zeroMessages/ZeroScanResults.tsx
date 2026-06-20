@@ -14,6 +14,13 @@ export const ZeroScanResults = ({
   const hasPreview = previewList.length > 0;
   const hasProcessedChannels = data.processedChannels.length > 0;
   const hasSkippedChannels = data.skippedChannels.length > 0;
+  const excludedCategories = data.excludedCategories ?? [];
+  const channelCoverage = data.channelCoverage ?? [];
+  const scanModeLabel = data.scanMode === "fast" ? "Fast (approximate)" : "Exact";
+  const excludedCategoryLabel =
+    excludedCategories.length > 0
+      ? excludedCategories.join(", ")
+      : "None";
 
   return (
     <section className={styles.page}>
@@ -33,12 +40,16 @@ export const ZeroScanResults = ({
       </div>
 
       {statusMessage && <p className={`status success ${styles.status}`}>{statusMessage}</p>}
+      {data.coverageWarning && (
+        <p className={`status error ${styles.status}`}>{data.coverageWarning}</p>
+      )}
 
       <div className="result-grid">
         <ResultTile label="Guild" value={data.guildName} />
         <ResultTile label="Zero-message users" value={data.zeroMessageCount} />
         <ResultTile label="Members checked" value={data.totalMembersChecked} />
         <ResultTile label="Messages scanned" value={data.totalMessagesScanned} />
+        <ResultTile label="Scan mode" value={scanModeLabel} />
       </div>
 
       <div className={styles.details}>
@@ -61,6 +72,26 @@ export const ZeroScanResults = ({
 
         <article className={styles.card}>
           <h3>Channel summary</h3>
+          <p className={styles.empty}>
+            Excluded categories: {excludedCategoryLabel}
+          </p>
+          {channelCoverage.length > 0 && (
+            <div className={styles.channelColumn}>
+              <h4>Coverage</h4>
+              <ul>
+                {channelCoverage.map((coverage) => (
+                  <li key={coverage.channelName}>
+                    {coverage.channelName}: {coverage.messagesScanned} messages
+                    scanned
+                    {coverage.oldestMessageAt
+                      ? `, oldest ${new Date(coverage.oldestMessageAt).toLocaleDateString()}`
+                      : ""}
+                    {coverage.reachedMessageLimit ? " (fast limit reached)" : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className={styles.channels}>
             <div className={styles.channelColumn}>
               <h4>Processed</h4>

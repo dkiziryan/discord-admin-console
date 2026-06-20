@@ -4,7 +4,7 @@ import {
   type Guild,
   type TextChannel,
 } from "discord.js";
-import type { LastActivityType } from "../../models/types";
+import type { ChannelScanCoverage, LastActivityType } from "../../models/types";
 
 export const fetchGuild = async (client: Client, guildId: string): Promise<Guild> => {
   try {
@@ -18,20 +18,68 @@ export const fetchGuild = async (client: Client, guildId: string): Promise<Guild
   }
 };
 
-export const resolveTargetChannels = (guild: Guild, channelNames: string[]): TextChannel[] => {
-  const normalizedTargets = channelNames.map((name) => name.trim().toLowerCase()).filter(Boolean);
+export const buildExcludedCategorySet = (categories: string[]): Set<string> => {
+  return new Set(
+    categories
+      .map((value) => value.trim().toLowerCase())
+      .filter((value) => value.length > 0),
+  );
+};
+
+const resolveCategoryName = (channel: TextChannel): string | null => {
+  const parent = channel.parent;
+  if (!parent) {
+    return null;
+  }
+
+  if (parent.type === ChannelType.GuildCategory) {
+    return parent.name;
+  }
+
+  return null;
+};
+
+export const resolveTargetChannels = (
+  guild: Guild,
+  channelNames: string[],
+  excludedCategories: Set<string>,
+): {
+  channels: TextChannel[];
+  matchedChannelCount: number;
+  skippedChannels: string[];
+} => {
+  const normalizedTargets = new Set(
+    channelNames.map((name) => name.trim().toLowerCase()).filter(Boolean),
+  );
+  const hasExplicitTargets = normalizedTargets.size > 0;
   const matched: TextChannel[] = [];
+  const skippedChannels: string[] = [];
+  let matchedChannelCount = 0;
 
   for (const channel of guild.channels.cache.values()) {
     if (channel?.type === ChannelType.GuildText) {
       const channelName = channel.name.toLowerCase();
-      if (normalizedTargets.includes(channelName)) {
-        matched.push(channel);
+      if (hasExplicitTargets && !normalizedTargets.has(channelName)) {
+        continue;
       }
+
+      matchedChannelCount += 1;
+      const categoryName = resolveCategoryName(channel);
+      if (
+        categoryName &&
+        excludedCategories.has(categoryName.trim().toLowerCase())
+      ) {
+        skippedChannels.push(
+          `${channel.name} (excluded category: ${categoryName})`,
+        );
+        continue;
+      }
+
+      matched.push(channel);
     }
   }
 
-  return matched;
+  return { channels: matched, matchedChannelCount, skippedChannels };
 };
 
 export const scanChannelHistory = async (
@@ -44,7 +92,7 @@ export const scanChannelHistory = async (
     onMemberProgress?: () => void;
     onCheckCancelled?: () => void;
   },
-): Promise<{ totalMessages: number }> => {
+): Promise<ChannelScanCoverage> => {
   const {
     countReactionsAsActivity = false,
     lastActivityByMemberId,
@@ -54,6 +102,9 @@ export const scanChannelHistory = async (
   } = options;
   let totalMessages = 0;
   let lastMessageId: string | undefined;
+  let newestMessageTimestamp: number | null = null;
+  let oldestMessageTimestamp: number | null = null;
+  let reachedMessageLimit = false;
 
   const markReactionUsersAsActive = (
     users: Iterable<{ id: string; bot?: boolean | null }>,
@@ -94,10 +145,19 @@ export const scanChannelHistory = async (
         maxMessagesPerChannel !== undefined &&
         totalMessages >= maxMessagesPerChannel
       ) {
+        reachedMessageLimit = true;
         break;
       }
 
       totalMessages += 1;
+      newestMessageTimestamp =
+        newestMessageTimestamp === null
+          ? message.createdTimestamp
+          : Math.max(newestMessageTimestamp, message.createdTimestamp);
+      oldestMessageTimestamp =
+        oldestMessageTimestamp === null
+          ? message.createdTimestamp
+          : Math.min(oldestMessageTimestamp, message.createdTimestamp);
 
       if (!message.author.bot && remainingIds.has(message.author.id)) {
         remainingIds.delete(message.author.id);
@@ -146,6 +206,7 @@ export const scanChannelHistory = async (
       maxMessagesPerChannel !== undefined &&
       totalMessages >= maxMessagesPerChannel
     ) {
+      reachedMessageLimit = true;
       break;
     }
 
@@ -153,7 +214,19 @@ export const scanChannelHistory = async (
     lastMessageId = oldestMessage.id;
   }
 
-  return { totalMessages };
+  return {
+    channelName: channel.name,
+    messagesScanned: totalMessages,
+    newestMessageAt:
+      newestMessageTimestamp === null
+        ? null
+        : new Date(newestMessageTimestamp).toISOString(),
+    oldestMessageAt:
+      oldestMessageTimestamp === null
+        ? null
+        : new Date(oldestMessageTimestamp).toISOString(),
+    reachedMessageLimit,
+  };
 };
 
 export const buildSkippedPreview = (skippedChannels: string[], limit: number): string => {

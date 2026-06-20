@@ -3,10 +3,10 @@ import type { FormEvent } from "react";
 
 import styles from "./ZeroMessageScanner.module.css";
 import type { ScanResponse, ScanStatus } from "../../models/types";
-import { fetchDefaultChannels } from "../../services/zeroMessages/defaultChannels";
 import { cancelScan } from "../../services/zeroMessages/cancelScan";
 import { fetchScanStatus } from "../../services/zeroMessages/scanStatus";
 import { requestZeroMessageScan } from "../../services/zeroMessages/zeroMessages";
+import { fetchDefaultInactiveCategories } from "../../services/inactivity/inactiveDefaults";
 import { useScanStatusPolling } from "../../hooks/useScanStatusPolling";
 import { parseChannelInput } from "../../utils/channel";
 import { ProgressIndicator } from "../shared/ProgressIndicator";
@@ -19,7 +19,7 @@ export const ZeroMessageScanner = () => {
   const [channelInput, setChannelInput] = useState("");
   const [dryRun, setDryRun] = useState(false);
   const [countReactionsAsActivity, setCountReactionsAsActivity] = useState(false);
-  const [fastScan, setFastScan] = useState(true);
+  const [fastScan, setFastScan] = useState(false);
   const [activeView, setActiveView] = useState<"scan" | "results">("scan");
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -27,11 +27,12 @@ export const ZeroMessageScanner = () => {
   const [result, setResult] = useState<ScanResponse | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [defaultCategories, setDefaultCategories] = useState<string[]>([]);
   const scanRequestInFlight = useRef(false);
   const scanStartedAt = useRef<number | null>(null);
 
   useEffect(() => {
-    void loadDefaultChannels();
+    void loadDefaultCategories();
   }, []);
 
   const elapsedSeconds = useScanStatusPolling({
@@ -69,15 +70,6 @@ export const ZeroMessageScanner = () => {
         setStatusMessage(null);
         setErrorMessage("Scan did not start. Try again.");
         setLoading(false);
-      } else if (
-        payload.inProgress &&
-        payload.totalChannels === 0 &&
-        payload.startedAt &&
-        startGracePeriodExpired
-      ) {
-        setStatusMessage(null);
-        setErrorMessage(payload.lastMessage ?? "Scan did not report target channels.");
-        setLoading(false);
       }
     },
     onStop: () => {
@@ -106,10 +98,10 @@ export const ZeroMessageScanner = () => {
     return lines;
   }, [result]);
 
-  const loadDefaultChannels = async () => {
+  const loadDefaultCategories = async () => {
     try {
-      const channels = await fetchDefaultChannels();
-      setChannelInput((currentValue) => (currentValue ? currentValue : channels.join("\n")));
+      const categories = await fetchDefaultInactiveCategories();
+      setDefaultCategories(categories);
     } catch (error) {
       setErrorMessage((error as Error).message);
     }
@@ -156,12 +148,12 @@ export const ZeroMessageScanner = () => {
 
     try {
       await requestZeroMessageScan({
-        channelNames: userChannels.length > 0 ? userChannels : undefined,
         countReactionsAsActivity,
         dryRun,
-        maxMessagesPerChannel: fastScan
-          ? FAST_SCAN_MAX_MESSAGES_PER_CHANNEL
-          : undefined,
+        ...(userChannels.length > 0 ? { channelNames: userChannels } : {}),
+        ...(fastScan
+          ? { maxMessagesPerChannel: FAST_SCAN_MAX_MESSAGES_PER_CHANNEL }
+          : {}),
       });
     } catch (error) {
       const message = (error as Error).message;
@@ -186,7 +178,7 @@ export const ZeroMessageScanner = () => {
         <>
           <form onSubmit={handleSubmit} className={styles.controlPanel}>
             <label htmlFor="channelInput">
-              Target channel names (newline or comma separated). Leave blank to use defaults from the config file.
+              Target channel names (newline or comma separated). Leave blank to scan all eligible channels.
             </label>
             <textarea
               id="channelInput"
@@ -196,6 +188,12 @@ export const ZeroMessageScanner = () => {
               rows={6}
               disabled={loading}
             />
+            {defaultCategories.length > 0 && (
+              <small>
+                Default excluded categories:{" "}
+                {defaultCategories.map((category) => `“${category}”`).join(", ")}
+              </small>
+            )}
             <label className={styles.dryRunToggle}>
               <input
                 type="checkbox"
@@ -221,11 +219,15 @@ export const ZeroMessageScanner = () => {
                 onChange={(event) => setFastScan(event.target.checked)}
                 disabled={loading}
               />
-              <span>Fast scan (first 5,000 messages per channel)</span>
+              <span>Fast scan (approximate: first 5,000 messages per channel)</span>
             </label>
-            {!fastScan && (
+            {fastScan ? (
               <small>
-                Full scan checks deeper channel history and may take much longer.
+                Fast scan can miss older posts and may over-report zero-message users.
+              </small>
+            ) : (
+              <small>
+                Exact scan checks full eligible channel history and may take longer.
               </small>
             )}
             <div className={styles.actions}>

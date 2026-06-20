@@ -12,6 +12,16 @@ export type ScanResponse = {
     previewNames: string[];
     moreCount: number;
     skippedPreview: string;
+    scanMode: "exact" | "fast";
+    excludedCategories: string[];
+    channelCoverage: {
+      channelName: string;
+      messagesScanned: number;
+      newestMessageAt: string | null;
+      oldestMessageAt: string | null;
+      reachedMessageLimit: boolean;
+    }[];
+    coverageWarning: string | null;
   };
 };
 
@@ -21,6 +31,7 @@ export type ApiError = {
 
 export type ZeroMessagesRequest = {
   channelNames?: string[];
+  excludedCategories?: string[];
   dryRun?: boolean;
   countReactionsAsActivity?: boolean;
   maxMessagesPerChannel?: number;

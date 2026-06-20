@@ -3,7 +3,62 @@ import path from "path";
 
 type CategoryList = string[];
 
-const BUILTIN_INACTIVE_CATEGORIES: CategoryList = [];
+export const DEFAULT_INACTIVE_CATEGORIES: CategoryList = [
+  "Affiliate Vendors",
+  "Private",
+];
+
+const PREVIOUS_INACTIVE_CATEGORIES: CategoryList = [
+  "Welcome",
+  "Affiliate Vendors",
+  "Private",
+];
+
+const LEGACY_INACTIVE_CATEGORIES: CategoryList = [
+  "Interests",
+  "Fun shit",
+  "Private",
+  "Marketplace",
+  "Welcome",
+  "Affiliate Vendors",
+];
+
+const normalizeCategoryKey = (category: string): string =>
+  category.trim().toLowerCase();
+
+const sameCategorySet = (left: CategoryList, right: CategoryList): boolean => {
+  const leftSet = new Set(left.map(normalizeCategoryKey));
+  const rightSet = new Set(right.map(normalizeCategoryKey));
+
+  if (leftSet.size !== rightSet.size) {
+    return false;
+  }
+
+  for (const category of leftSet) {
+    if (!rightSet.has(category)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+export const normalizeInactiveCategoryDefaults = (
+  categories: CategoryList,
+): CategoryList => {
+  if (
+    sameCategorySet(categories, LEGACY_INACTIVE_CATEGORIES) ||
+    sameCategorySet(categories, PREVIOUS_INACTIVE_CATEGORIES)
+  ) {
+    return [...DEFAULT_INACTIVE_CATEGORIES];
+  }
+
+  return [...categories];
+};
+
+const BUILTIN_INACTIVE_CATEGORIES: CategoryList = [
+  ...DEFAULT_INACTIVE_CATEGORIES,
+];
 
 const INACTIVE_FILE_PATH = path.resolve(process.cwd(), "config", "inactiveCategories.json");
 const INACTIVE_LOCAL_FILE_PATH = path.resolve(
@@ -42,7 +97,9 @@ const loadCategoryFile = async (filePath: string): Promise<CategoryList | null> 
     const raw = await fs.readFile(filePath, "utf8");
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
-      return parsed.map((value) => value.trim()).filter((value) => value.length > 0);
+      return normalizeInactiveCategoryDefaults(
+        parsed.map((value) => value.trim()).filter((value) => value.length > 0),
+      );
     }
   } catch {
     // Ignore errors and fall through to other data sources.
@@ -89,7 +146,9 @@ export const getInactiveCategoryDefaultsSync = (): CategoryList => {
       const raw = readFileSync(filePath, "utf8");
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
-        return parsed.map((value) => value.trim()).filter((value) => value.length > 0);
+        return normalizeInactiveCategoryDefaults(
+          parsed.map((value) => value.trim()).filter((value) => value.length > 0),
+        );
       }
     } catch {
       // Ignore and fall through.

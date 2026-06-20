@@ -4,13 +4,13 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ZeroMessageScanner } from "./ZeroMessageScanner";
-import { fetchDefaultChannels } from "../../services/zeroMessages/defaultChannels";
 import { fetchScanStatus } from "../../services/zeroMessages/scanStatus";
 import { requestZeroMessageScan } from "../../services/zeroMessages/zeroMessages";
+import { fetchDefaultInactiveCategories } from "../../services/inactivity/inactiveDefaults";
 import type { ScanResponse, ScanStatus } from "../../models/types";
 
-vi.mock("../../services/zeroMessages/defaultChannels", () => ({
-  fetchDefaultChannels: vi.fn(),
+vi.mock("../../services/inactivity/inactiveDefaults", () => ({
+  fetchDefaultInactiveCategories: vi.fn(),
 }));
 vi.mock("../../services/zeroMessages/scanStatus", () => ({
   fetchScanStatus: vi.fn(),
@@ -36,6 +36,18 @@ const result: ScanResponse = {
     previewNames: ["Alice"],
     moreCount: 0,
     skippedPreview: "",
+    scanMode: "exact",
+    excludedCategories: ["Affiliate Vendors", "Private"],
+    channelCoverage: [
+      {
+        channelName: "in-between",
+        messagesScanned: 123,
+        newestMessageAt: "2026-06-20T12:00:00.000Z",
+        oldestMessageAt: "2026-05-29T12:00:00.000Z",
+        reachedMessageLimit: false,
+      },
+    ],
+    coverageWarning: null,
   },
 };
 
@@ -60,8 +72,11 @@ afterEach(() => {
 });
 
 describe("ZeroMessageScanner", () => {
-  it("submits default channels and renders polled results", async () => {
-    vi.mocked(fetchDefaultChannels).mockResolvedValue(["general"]);
+  it("submits a blank all-channel scan and renders excluded defaults", async () => {
+    vi.mocked(fetchDefaultInactiveCategories).mockResolvedValue([
+      "Affiliate Vendors",
+      "Private",
+    ]);
     vi.mocked(requestZeroMessageScan).mockResolvedValue();
     vi.mocked(fetchScanStatus).mockResolvedValue(completedStatus);
 
@@ -70,19 +85,55 @@ describe("ZeroMessageScanner", () => {
     await waitFor(() => {
       expect(screen.getByLabelText(/Target channel names/)).toHaveProperty(
         "value",
-        "general",
+        "",
       );
     });
+    expect(screen.getByText(/Default excluded categories:/)).toBeTruthy();
+    expect(screen.getByText(/Affiliate Vendors/)).toBeTruthy();
+    expect(screen.getByText(/Private/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Scan for zero-message users" }));
 
     expect(await screen.findByText("Scan results")).toBeTruthy();
     expect(screen.getByText("Alice")).toBeTruthy();
+    expect(screen.getByText(/in-between: 123 messages scanned/)).toBeTruthy();
     expect(requestZeroMessageScan).toHaveBeenCalledWith({
-      channelNames: ["general"],
       countReactionsAsActivity: false,
       dryRun: false,
-      maxMessagesPerChannel: 5000,
     });
+  });
+
+  it("renders coverage warnings from approximate scans", async () => {
+    vi.mocked(fetchDefaultInactiveCategories).mockResolvedValue([]);
+    vi.mocked(requestZeroMessageScan).mockResolvedValue();
+    vi.mocked(fetchScanStatus).mockResolvedValue({
+      ...completedStatus,
+      result: {
+        ...result,
+        data: {
+          ...result.data,
+          scanMode: "fast",
+          coverageWarning:
+            "Fast scan reached the message limit in in-between. Older posts may not have been scanned.",
+        },
+      },
+    });
+
+    render(<ZeroMessageScanner />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Scan for zero-message users" }));
+
+    expect(await screen.findByText(/Fast scan reached the message limit/)).toBeTruthy();
+  });
+
+  it("warns that fast scan is approximate", async () => {
+    vi.mocked(fetchDefaultInactiveCategories).mockResolvedValue([]);
+    vi.mocked(fetchScanStatus).mockResolvedValue(null);
+
+    render(<ZeroMessageScanner />);
+
+    fireEvent.click(screen.getByLabelText(/Fast scan/));
+
+    expect(screen.getByText(/Fast scan can miss older posts/)).toBeTruthy();
   });
 });

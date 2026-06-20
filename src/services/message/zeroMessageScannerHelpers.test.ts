@@ -126,7 +126,7 @@ test("scanChannelHistory stops at maxMessagesPerChannel", async () => {
     maxMessagesPerChannel: 1,
   });
 
-  assert.equal(result.totalMessages, 1);
+  assert.equal(result.messagesScanned, 1);
   assert.equal(remainingIds.has("member-one"), false);
   assert.equal(remainingIds.has("member-two"), true);
 });

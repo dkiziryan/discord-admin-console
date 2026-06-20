@@ -13,7 +13,6 @@ import { kickMembersFromCsv } from "../services/csv/kickFromCsv";
 import { ScanCancelledError } from "../services/errors";
 import {
   collectInactiveExcludedCategories,
-  readGuildSettings,
 } from "../services/guildSettings";
 import {
   mapInactiveResultToResponse,
@@ -218,6 +217,9 @@ export const registerWorkflowRoutes = (
     }
 
     const requestChannels = parseChannelNames(req.body?.channelNames);
+    const requestExcludedCategories = parseChannelNames(
+      req.body?.excludedCategories,
+    );
     const dryRun = Boolean(req.body?.dryRun);
     const countReactionsAsActivity = Boolean(req.body?.countReactionsAsActivity);
     const maxMessagesPerChannel = parseMaxMessagesPerChannel(
@@ -252,11 +254,20 @@ export const registerWorkflowRoutes = (
       }
     }
 
-    let targetChannelNames = requestChannels;
-    if (targetChannelNames.length === 0) {
-      const settings = await readGuildSettings(activeGuildId);
-      targetChannelNames = settings.defaultTargetChannels;
-    }
+    const targetChannelNames = requestChannels;
+    const excludedCategories = Array.from(
+      new Set(
+        (
+          await collectInactiveExcludedCategories(
+            activeGuildId,
+            requestExcludedCategories,
+          )
+        )
+          .map((category) => category.trim())
+          .filter((category) => category.length > 0),
+      ),
+    );
+    const scanMode = maxMessagesPerChannel === undefined ? "exact" : "fast";
 
     let jobId: string;
     try {
@@ -266,7 +277,9 @@ export const registerWorkflowRoutes = (
           dryRun,
           countReactionsAsActivity,
           ...(maxMessagesPerChannel ? { maxMessagesPerChannel } : {}),
+          excludedCategories,
           guildId: activeGuildId,
+          scanMode,
           targetChannelNames,
         },
         type: "zero_scan",
@@ -287,8 +300,7 @@ export const registerWorkflowRoutes = (
       totalMembers: 0,
       startedAt: new Date().toISOString(),
       finishedAt: null,
-      lastMessage:
-        totalChannels > 0 ? "Preparing scan…" : "No target channels configured.",
+      lastMessage: "Preparing scan…",
       errorMessage: null,
       result: null,
     });
@@ -307,11 +319,18 @@ export const registerWorkflowRoutes = (
         guildId: activeGuildId,
         discordUserId,
         targetChannelNames,
+        excludedCategories,
         dryRun,
         countReactionsAsActivity,
         maxMessagesPerChannel,
         isCancelled: cancellationController.isCancelled,
         progressCallbacks: {
+          onChannelsResolved(total) {
+            updateScanStatus(activeGuildId, {
+              totalChannels: total,
+              lastMessage: `Preparing to scan ${total} channel(s)…`,
+            });
+          },
           onChannelStart(channelName, index, total) {
             updateScanStatus(activeGuildId, {
               inProgress: true,
@@ -344,13 +363,16 @@ export const registerWorkflowRoutes = (
           message: dryRun
             ? "Dry run complete. Empty CSV generated."
             : `Scan complete. Found ${result.zeroMessageUsers.length} users with zero messages.`,
-          channels: targetChannelNames,
+          channels:
+            targetChannelNames.length > 0
+              ? targetChannelNames
+              : responseData.processedChannels,
           data: responseData,
         };
         await registerCsvArtifact({ csvPath: result.csvPath, jobId });
         await completeJob(jobId, {
           resultJson: {
-            channels: targetChannelNames,
+            channels: response.channels,
             data: responseData,
             message: response.message,
           },

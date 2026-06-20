@@ -10,11 +10,13 @@ import { formatDiscordName } from "../../utils/discordMemberName";
 import { resolveScanChannelConcurrency } from "../../utils/scanConcurrency";
 
 import type {
+  ChannelScanCoverage,
   LastActivityType,
   ScanZeroMessagesOptions,
   ScanZeroMessagesResult,
 } from "../../models/types";
 import {
+  buildExcludedCategorySet,
   fetchGuild,
   resolveTargetChannels,
   scanChannelHistory,
@@ -30,6 +32,25 @@ const SUMMARY_PREVIEW_LIMIT = 10;
 const SKIPPED_PREVIEW_LIMIT = 5;
 const ZERO_MESSAGE_CSV_PREFIX = "users-with-zero-messages";
 
+const buildCoverageWarning = (
+  scanMode: "exact" | "fast",
+  channelCoverage: ChannelScanCoverage[],
+): string | null => {
+  if (scanMode !== "fast") {
+    return null;
+  }
+
+  const cappedChannels = channelCoverage
+    .filter((coverage) => coverage.reachedMessageLimit)
+    .map((coverage) => coverage.channelName);
+
+  if (cappedChannels.length === 0) {
+    return null;
+  }
+
+  return `Fast scan reached the message limit in ${cappedChannels.join(", ")}. Older posts may not have been scanned.`;
+};
+
 export const scanZeroMessageUsers = async (
   client: Client,
   options: ScanZeroMessagesOptions,
@@ -38,6 +59,7 @@ export const scanZeroMessageUsers = async (
     guildId,
     discordUserId,
     targetChannelNames,
+    excludedCategories = [],
     dryRun = false,
     countReactionsAsActivity = false,
     maxMessagesPerChannel,
@@ -54,6 +76,7 @@ export const scanZeroMessageUsers = async (
 
   throwIfCancelled();
   const guild = await fetchGuild(client, guildId);
+  const scanMode = maxMessagesPerChannel === undefined ? "exact" : "fast";
 
   if (dryRun) {
     const csvPath = await writeUserCsv(
@@ -75,6 +98,10 @@ export const scanZeroMessageUsers = async (
       previewNames: [],
       moreCount: 0,
       skippedPreview: "",
+      scanMode,
+      excludedCategories,
+      channelCoverage: [],
+      coverageWarning: null,
     };
   }
 
@@ -121,16 +148,35 @@ export const scanZeroMessageUsers = async (
       previewNames: [],
       moreCount: 0,
       skippedPreview: "",
+      scanMode,
+      excludedCategories,
+      channelCoverage: [],
+      coverageWarning: null,
     };
   }
 
-  const matchedTargetChannels = resolveTargetChannels(guild, targetChannelNames);
+  const {
+    channels: matchedTargetChannels,
+    matchedChannelCount,
+    skippedChannels,
+  } = resolveTargetChannels(
+    guild,
+    targetChannelNames,
+    buildExcludedCategorySet(excludedCategories),
+  );
 
-  if (matchedTargetChannels.length === 0) {
-    throw new Error("No target channels found with the provided names.");
+  const hasExplicitTargetChannels = targetChannelNames.some(
+    (name) => name.trim().length > 0,
+  );
+
+  if (matchedChannelCount === 0) {
+    throw new Error(
+      hasExplicitTargetChannels
+        ? "No target channels found with the provided names."
+        : "No text channels were found for zero-message scan.",
+    );
   }
 
-  const skippedChannels: string[] = [];
   const targetChannels = matchedTargetChannels.filter((channel) => {
     const me = guild.members.me;
     const canReadHistory = me
@@ -146,9 +192,15 @@ export const scanZeroMessageUsers = async (
     return true;
   });
 
+  if (targetChannels.length === 0) {
+    throw new Error("No eligible channels were found for zero-message scan.");
+  }
+
   const totalChannels = targetChannels.length;
+  progressCallbacks?.onChannelsResolved?.(totalChannels);
   let totalMessagesScanned = 0;
   const processedChannels: string[] = [];
+  const channelCoverage: ChannelScanCoverage[] = [];
   let nextChannelIndex = 0;
   let completedChannels = 0;
 
@@ -172,14 +224,15 @@ export const scanZeroMessageUsers = async (
       );
 
       try {
-        const channelStats = await scanChannelHistory(channel, remainingIds, {
+        const coverage = await scanChannelHistory(channel, remainingIds, {
           countReactionsAsActivity,
           lastActivityByMemberId,
           maxMessagesPerChannel,
           onMemberProgress: updateMemberProgress,
           onCheckCancelled: throwIfCancelled,
         });
-        totalMessagesScanned += channelStats.totalMessages;
+        channelCoverage.push(coverage);
+        totalMessagesScanned += coverage.messagesScanned;
       } catch (error) {
         if (error instanceof DiscordAPIError) {
           if (error.code === 50013) {
@@ -246,6 +299,7 @@ export const scanZeroMessageUsers = async (
     skippedChannels,
     SKIPPED_PREVIEW_LIMIT,
   );
+  const coverageWarning = buildCoverageWarning(scanMode, channelCoverage);
 
   return {
     guildName: guild.name,
@@ -259,6 +313,10 @@ export const scanZeroMessageUsers = async (
     previewNames,
     moreCount,
     skippedPreview,
+    scanMode,
+    excludedCategories,
+    channelCoverage,
+    coverageWarning,
   };
 };
 
@@ -274,5 +332,9 @@ export const mapResultToResponse = (result: ScanZeroMessagesResult) => {
     previewNames: result.previewNames,
     moreCount: result.moreCount,
     skippedPreview: result.skippedPreview,
+    scanMode: result.scanMode,
+    excludedCategories: result.excludedCategories,
+    channelCoverage: result.channelCoverage,
+    coverageWarning: result.coverageWarning,
   };
 };

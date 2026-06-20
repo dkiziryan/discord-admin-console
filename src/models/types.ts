@@ -1,16 +1,28 @@
 import type { GuildMember } from "discord.js";
 
 export type ScanProgressCallbacks = {
+  onChannelsResolved?(total: number): void;
   onChannelStart?(channelName: string, index: number, total: number): void;
   onChannelComplete?(channelName: string, index: number, total: number): void;
   onMemberProgress?(processedMembers: number, totalMembers: number): void;
   onMessageProgress?(totalMessages: number): void;
 };
 
+export type ZeroMessageScanMode = "exact" | "fast";
+
+export type ChannelScanCoverage = {
+  channelName: string;
+  messagesScanned: number;
+  newestMessageAt: string | null;
+  oldestMessageAt: string | null;
+  reachedMessageLimit: boolean;
+};
+
 export type ScanZeroMessagesOptions = {
   guildId: string;
   discordUserId: string;
   targetChannelNames: string[];
+  excludedCategories?: string[];
   dryRun?: boolean;
   countReactionsAsActivity?: boolean;
   maxMessagesPerChannel?: number;
@@ -31,6 +43,10 @@ export type ScanZeroMessagesResult = {
   previewNames: string[];
   moreCount: number;
   skippedPreview: string;
+  scanMode: ZeroMessageScanMode;
+  excludedCategories: string[];
+  channelCoverage: ChannelScanCoverage[];
+  coverageWarning: string | null;
 };
 
 export type StartServerOptions = {
@@ -67,6 +83,10 @@ export type ScanZeroMessagesResponse = {
     previewNames: string[];
     moreCount: number;
     skippedPreview: string;
+    scanMode: ZeroMessageScanMode;
+    excludedCategories: string[];
+    channelCoverage: ChannelScanCoverage[];
+    coverageWarning: string | null;
   };
 };
 

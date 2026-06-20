@@ -1,6 +1,8 @@
 import { Prisma } from "@prisma/client";
 import {
   applyConfiguredInactiveCategoryScope,
+  canUseConfiguredInactiveCategories,
+  normalizeInactiveCategoryDefaults,
   readInactiveCategoryDefaults,
 } from "../config/inactiveCategories";
 import {
@@ -24,7 +26,9 @@ const mapGuildSettings = (record: {
   discordGuildId: record.discordGuildId,
   inactiveExcludedCategories: applyConfiguredInactiveCategoryScope(
     record.discordGuildId,
-    toStringArray(record.inactiveExcludedCategories),
+    normalizeInactiveCategoryDefaults(
+      toStringArray(record.inactiveExcludedCategories),
+    ),
   ),
   defaultTargetChannels: applyConfiguredChannelScope(
     record.discordGuildId,
@@ -67,16 +71,29 @@ export const readGuildSettings = async (
   return mapGuildSettings(settings);
 };
 
+export const readScopedEnvInactiveCategories = (guildId: string): string[] => {
+  if (!canUseConfiguredInactiveCategories(guildId)) {
+    return [];
+  }
+
+  return normalizeInactiveCategoryDefaults(
+    (process.env.INACTIVE_EXCLUDED_CATEGORIES ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0),
+  );
+};
+
 export const collectInactiveExcludedCategories = async (
   guildId: string,
   extra: string[] = [],
 ): Promise<string[]> => {
   const settings = await readGuildSettings(guildId);
-  const envValue = process.env.INACTIVE_EXCLUDED_CATEGORIES ?? "";
-  const envCategories = envValue
-    .split(",")
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0);
+  const envCategories = readScopedEnvInactiveCategories(guildId);
 
-  return [...settings.inactiveExcludedCategories, ...extra, ...envCategories];
+  return normalizeInactiveCategoryDefaults([
+    ...settings.inactiveExcludedCategories,
+    ...extra,
+    ...envCategories,
+  ]);
 };
