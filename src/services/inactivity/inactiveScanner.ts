@@ -5,6 +5,7 @@ import { Client, Collection, DiscordAPIError } from "discord.js";
 import {
   buildExcludedCategorySet,
   buildSkippedPreview,
+  ensureGuildMembersFetched,
   extractMembers,
   fetchGuild,
   resolveGuildMe,
@@ -54,7 +55,7 @@ export const scanInactiveMembers = async (
   const guild = await fetchGuild(client, guildId);
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-  await guild.members.fetch();
+  await ensureGuildMembersFetched(guild);
   throwIfCancelled();
   await guild.channels.fetch();
   throwIfCancelled();
@@ -113,6 +114,7 @@ export const scanInactiveMembers = async (
   const resolvedTargetChannels = await resolveTargetChannels(
     guild,
     normalizedExcluded,
+    cutoff,
     threadCollection,
     throwIfCancelled,
   );

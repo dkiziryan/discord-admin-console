@@ -28,9 +28,114 @@ export const fetchGuild = async (
   return guild;
 };
 
+export const ensureGuildMembersFetched = async (
+  guild: Guild,
+): Promise<void> => {
+  const memberCount =
+    typeof guild.memberCount === "number" && Number.isFinite(guild.memberCount)
+      ? guild.memberCount
+      : null;
+
+  if (memberCount !== null && guild.members.cache.size >= memberCount) {
+    return;
+  }
+
+  await guild.members.fetch();
+};
+
+type ThreadFetchParent = GuildTextBasedChannel & {
+  threads: {
+    fetchActive?: () => Promise<{
+      threads: Collection<string, AnyThreadChannel>;
+    }>;
+    fetchArchived?: (
+      options?: Record<string, unknown>,
+    ) => Promise<{
+      threads: Collection<string, AnyThreadChannel>;
+      hasMore?: boolean;
+    }>;
+  };
+};
+
+const isPublicThread = (channel: unknown): channel is AnyThreadChannel => {
+  const kind = (channel as { type?: ChannelType }).type;
+  return (
+    kind === ChannelType.PublicThread ||
+    kind === ChannelType.AnnouncementThread
+  );
+};
+
+const isThread = (channel: unknown): channel is AnyThreadChannel => {
+  const kind = (channel as { type?: ChannelType }).type;
+  return (
+    kind === ChannelType.PublicThread ||
+    kind === ChannelType.PrivateThread ||
+    kind === ChannelType.AnnouncementThread
+  );
+};
+
+const hasThreadManager = (channel: unknown): channel is ThreadFetchParent => {
+  const kind = (channel as { type?: ChannelType }).type;
+  const threadManager = (channel as { threads?: unknown }).threads;
+  return Boolean(
+    threadManager &&
+      (kind === ChannelType.GuildText ||
+        kind === ChannelType.GuildAnnouncement ||
+        kind === ChannelType.GuildForum),
+  );
+};
+
+const fetchArchivedPublicThreads = async (
+  channel: ThreadFetchParent,
+  cutoff: Date,
+  onCheckCancelled?: () => void,
+): Promise<AnyThreadChannel[]> => {
+  const threads: AnyThreadChannel[] = [];
+  let before: Date | undefined;
+  const cutoffTimestamp = cutoff.getTime();
+
+  while (true) {
+    onCheckCancelled?.();
+    const result = await channel.threads.fetchArchived?.({
+      type: "public",
+      limit: 100,
+      ...(before ? { before } : {}),
+    });
+
+    if (!result || result.threads.size === 0) {
+      break;
+    }
+
+    const page = Array.from(result.threads.values()).filter(isPublicThread);
+    const recentThreads = page.filter((thread) => {
+      const archiveTimestamp = thread.archiveTimestamp;
+      return archiveTimestamp === null || archiveTimestamp >= cutoffTimestamp;
+    });
+    threads.push(...recentThreads);
+
+    if (!result.hasMore || page.length === 0) {
+      break;
+    }
+
+    const oldestThread = page[page.length - 1];
+    if (oldestThread.archiveTimestamp === null) {
+      break;
+    }
+
+    if (oldestThread.archiveTimestamp < cutoffTimestamp) {
+      break;
+    }
+
+    before = new Date(oldestThread.archiveTimestamp);
+  }
+
+  return threads;
+};
+
 export const resolveTargetChannels = async (
   guild: Guild,
   excludedCategories: Set<string>,
+  cutoff: Date,
   activeThreads: Collection<string, AnyThreadChannel> | null,
   onCheckCancelled?: () => void,
 ): Promise<GuildTextBasedChannel[]> => {
@@ -38,6 +143,10 @@ export const resolveTargetChannels = async (
   const seen = new Set<string>();
 
   const considerChannel = (channel: unknown) => {
+    if (isThread(channel) && !isPublicThread(channel)) {
+      return;
+    }
+
     const kind = (channel as { type?: ChannelType }).type;
     if (kind === ChannelType.GuildForum) {
       return;
@@ -70,28 +179,25 @@ export const resolveTargetChannels = async (
 
   const addChildThreads = async (channel: unknown) => {
     onCheckCancelled?.();
-    const kind = (channel as { type?: ChannelType }).type;
-    const threadManager = (channel as { threads?: unknown }).threads as {
-      fetchActive?: () => Promise<{
-        threads: Collection<string, AnyThreadChannel>;
-      }>;
-      fetchArchived?: (
-        options?: Record<string, unknown>,
-      ) => Promise<{ threads: Collection<string, AnyThreadChannel> }>;
-    } | null;
-
-    if (
-      !threadManager ||
-      (kind !== ChannelType.GuildText &&
-        kind !== ChannelType.GuildAnnouncement &&
-        kind !== ChannelType.GuildForum)
-    ) {
+    if (!hasThreadManager(channel)) {
       return;
     }
 
-    // Archived threads are intentionally excluded from inactivity scans.
-    // They can be stale, slow to fetch, and confusing in progress output because
-    // they no longer appear as active server channels.
+    const activeChildThreads = await channel.threads
+      .fetchActive?.()
+      .catch(() => null);
+    activeChildThreads?.threads.forEach((thread) => {
+      if (isPublicThread(thread)) {
+        considerChannel(thread);
+      }
+    });
+
+    const archivedThreads = await fetchArchivedPublicThreads(
+      channel,
+      cutoff,
+      onCheckCancelled,
+    ).catch(() => []);
+    archivedThreads.forEach(considerChannel);
   };
 
   for (const channel of guild.channels.cache.values()) {
@@ -101,7 +207,11 @@ export const resolveTargetChannels = async (
   }
 
   onCheckCancelled?.();
-  activeThreads?.forEach((thread) => considerChannel(thread));
+  activeThreads?.forEach((thread) => {
+    if (isPublicThread(thread)) {
+      considerChannel(thread);
+    }
+  });
 
   return targets;
 };
@@ -109,13 +219,7 @@ export const resolveTargetChannels = async (
 export const resolveScanTargetLabel = (
   channel: GuildTextBasedChannel | AnyThreadChannel,
 ): string => {
-  const kind = (channel as { type?: ChannelType }).type;
-  const isThread =
-    kind === ChannelType.PublicThread ||
-    kind === ChannelType.PrivateThread ||
-    kind === ChannelType.AnnouncementThread;
-
-  if (!isThread) {
+  if (!isThread(channel)) {
     return `#${channel.name}`;
   }
 
