@@ -2,6 +2,10 @@ import type { Application, Request, Response } from "express";
 
 import type { IgnoredUsersResponse } from "../models/types";
 import {
+  readGuildSettings,
+  updateGuildSettings,
+} from "../services/guildSettings";
+import {
   addIgnoredUser,
   buildIgnoredUsersCsv,
   importIgnoredUsers,
@@ -31,6 +35,40 @@ export const registerSettingsRoutes = (
       Boolean(req.body?.useProductionData),
     );
     res.json(settings);
+  });
+
+  app.get("/api/guild-settings", async (req, res) => {
+    const activeGuildId = requireSelectedGuildId(req, res);
+    if (!activeGuildId) {
+      return;
+    }
+
+    try {
+      const settings = await readGuildSettings(activeGuildId);
+      res.json({ settings });
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post("/api/guild-settings", async (req, res) => {
+    const activeGuildId = requireSelectedGuildId(req, res);
+    if (!activeGuildId) {
+      return;
+    }
+
+    try {
+      const settings = await updateGuildSettings(activeGuildId, {
+        defaultTargetChannels: req.body?.defaultTargetChannels,
+        inactiveExcludedCategories: req.body?.inactiveExcludedCategories,
+      });
+      res.json({
+        message: "Workflow defaults saved.",
+        settings,
+      });
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
+    }
   });
 
   app.get("/api/ignored-users", async (req, res) => {

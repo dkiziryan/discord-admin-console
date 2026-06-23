@@ -247,6 +247,21 @@ export type JobHistoryResponse = {
   jobs: JobHistoryItem[];
 };
 
+export type GuildWorkflowSettings = {
+  discordGuildId: string;
+  defaultTargetChannels: string[];
+  inactiveExcludedCategories: string[];
+};
+
+export type GuildWorkflowSettingsResponse = {
+  settings: GuildWorkflowSettings;
+};
+
+export type UpdateGuildWorkflowSettingsRequest = {
+  defaultTargetChannels: string[];
+  inactiveExcludedCategories: string[];
+};
+
 export type IgnoredUser = {
   id: string;
   discordUserId: string;

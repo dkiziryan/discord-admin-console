@@ -18,6 +18,12 @@
   font-weight: 400;
 }
 
+.presetBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .controlPanel textarea {
   background: var(--discord-bg-deep);
   border: 1px solid var(--discord-border-strong);

@@ -19,6 +19,7 @@
   color: var(--discord-text-subtle);
 }
 
+.workflowSection,
 .ignoreSection {
   display: flex;
   flex-direction: column;
@@ -62,6 +63,41 @@
   border-radius: var(--discord-radius-md);
   color: inherit;
   padding: 0.65rem 0.75rem;
+}
+
+.settingsForm {
+  align-items: start;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(12rem, 1fr)) auto;
+}
+
+.settingsForm label {
+  color: var(--discord-text);
+  display: flex;
+  flex-direction: column;
+  font-weight: 800;
+  gap: 0.35rem;
+}
+
+.settingsForm textarea {
+  background: var(--discord-bg-deep);
+  border: 1px solid var(--discord-border-strong);
+  border-radius: var(--discord-radius-md);
+  color: inherit;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  min-height: 108px;
+  padding: 0.65rem 0.75rem;
+  resize: vertical;
+}
+
+.settingsForm small {
+  color: var(--discord-text-subtle);
+  font-weight: 400;
+}
+
+.settingsForm button {
+  margin-top: 1.55rem;
 }
 
 .importRow {
@@ -182,10 +218,15 @@
 @media (max-width: 760px) {
   .sectionHeader,
   .addForm,
+  .settingsForm,
   .userList li,
   .pagination {
     align-items: stretch;
     display: flex;
     flex-direction: column;
+  }
+
+  .settingsForm button {
+    margin-top: 0;
   }
 }

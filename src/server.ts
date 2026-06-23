@@ -83,6 +83,7 @@ const MIN_FAST_SCAN_MESSAGES_PER_CHANNEL = 100;
 const MAX_FAST_SCAN_MESSAGES_PER_CHANNEL = 100_000;
 const RATE_LIMITED_API_WORKFLOW_PATHS = new Set([
   "/cleanup-roles",
+  "/guild-settings",
   "/inactive-channels",
   "/ignored-users",
   "/ignored-users/import",

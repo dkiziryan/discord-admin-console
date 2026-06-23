@@ -153,6 +153,20 @@ export const InactiveScanPanel = () => {
   const preview = result?.data.previewNames ?? [];
   const moreCount = result?.data.moreCount ?? 0;
 
+  const applyPreset = ({
+    nextDays,
+    nextFastScan,
+    nextCountReactionsAsActivity,
+  }: {
+    nextDays: number;
+    nextFastScan: boolean;
+    nextCountReactionsAsActivity: boolean;
+  }) => {
+    setDays(nextDays);
+    setFastScan(nextFastScan);
+    setCountReactionsAsActivity(nextCountReactionsAsActivity);
+  };
+
   return (
     <section className={styles.panel}>
       <header>
@@ -163,6 +177,36 @@ export const InactiveScanPanel = () => {
       </header>
 
       <div className={styles.form}>
+        <div className={styles.presetBar} aria-label="Inactive scan presets">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() =>
+              applyPreset({
+                nextCountReactionsAsActivity: false,
+                nextDays: 180,
+                nextFastScan: true,
+              })
+            }
+            disabled={loading}
+          >
+            180-day fast scan
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() =>
+              applyPreset({
+                nextCountReactionsAsActivity: false,
+                nextDays: 365,
+                nextFastScan: false,
+              })
+            }
+            disabled={loading}
+          >
+            365-day full scan
+          </button>
+        </div>
         <label>
           Days without activity
           <input

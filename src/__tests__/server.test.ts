@@ -11,7 +11,10 @@ import {
   DEFAULT_INACTIVE_CATEGORIES,
   normalizeInactiveCategoryDefaults,
 } from "../config/inactiveCategories";
-import { readScopedEnvInactiveCategories } from "../services/guildSettings";
+import {
+  normalizeGuildSettingsList,
+  readScopedEnvInactiveCategories,
+} from "../services/guildSettings";
 import {
   getOriginFromUrl,
   isAllowedBrowserOrigin,
@@ -28,6 +31,12 @@ test("parseChannelNames does not split on the letter n", () => {
   const parsed = parseChannelNames("announcements");
 
   assert.deepEqual(parsed, ["announcements"]);
+});
+
+test("normalizeGuildSettingsList accepts comma and newline separated values", () => {
+  const parsed = normalizeGuildSettingsList("general\nannouncements,General");
+
+  assert.deepEqual(parsed, ["general", "announcements"]);
 });
 
 test("configured target channels are scoped to the configured guild", () => {

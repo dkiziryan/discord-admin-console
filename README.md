@@ -181,6 +181,8 @@ Do not set `WEB_APP_URL` in Railway. It is for local development.
 - `POST /auth/guild/select`: select the active server for dashboard workflows
 - `POST /auth/logout`: clear the current session
 - `GET /api/health`: readiness probe
+- `GET /api/guild-settings`: selected server workflow defaults
+- `POST /api/guild-settings`: update selected server workflow defaults
 - `GET /api/default-channels`: selected server legacy default target channels
 - `GET /api/inactive-defaults`: selected server inactive category defaults
 - `GET /api/scan-status`: zero-message scan progress

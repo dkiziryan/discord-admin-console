@@ -10,9 +10,28 @@ import {
   importIgnoredUsers,
   removeIgnoredUser,
 } from "../../services/settings/ignoredUsers";
+import {
+  fetchGuildWorkflowSettings,
+  saveGuildWorkflowSettings,
+} from "../../services/settings/guildSettings";
 
 const DISCORD_USER_ID_PATTERN = /^\d{5,25}$/;
 const USER_LIST_PAGE_SIZE = 10;
+
+const formatSettingsList = (values: string[]): string => values.join("\n");
+
+const parseSettingsList = (value: string): string[] =>
+  value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter((item, index, items) => {
+      if (!item) {
+        return false;
+      }
+
+      const key = item.toLowerCase();
+      return items.findIndex((candidate) => candidate.toLowerCase() === key) === index;
+    });
 
 const hasImportableUserId = (contents: string): boolean => {
   const lines = contents.split(/\r?\n/);
@@ -30,8 +49,12 @@ export const ServerSettingsPanel = () => {
   const [ignoredUsers, setIgnoredUsers] = useState<IgnoredUser[]>([]);
   const [discordUserId, setDiscordUserId] = useState("");
   const [username, setUsername] = useState("");
+  const [targetChannelsValue, setTargetChannelsValue] = useState("");
+  const [inactiveCategoriesValue, setInactiveCategoriesValue] = useState("");
   const [userPage, setUserPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [workflowLoading, setWorkflowLoading] = useState(true);
+  const [workflowSaving, setWorkflowSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -51,8 +74,25 @@ export const ServerSettingsPanel = () => {
     }
   };
 
+  const loadWorkflowSettings = async () => {
+    setWorkflowLoading(true);
+    setErrorMessage(null);
+    try {
+      const settings = await fetchGuildWorkflowSettings();
+      setTargetChannelsValue(formatSettingsList(settings.defaultTargetChannels));
+      setInactiveCategoriesValue(
+        formatSettingsList(settings.inactiveExcludedCategories),
+      );
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setWorkflowLoading(false);
+    }
+  };
+
   useEffect(() => {
     void loadIgnoredUsers();
+    void loadWorkflowSettings();
   }, []);
 
   const totalUserPages = Math.max(
@@ -94,6 +134,34 @@ export const ServerSettingsPanel = () => {
       setErrorMessage((error as Error).message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveWorkflowSettings = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    if (workflowSaving) {
+      return;
+    }
+
+    setWorkflowSaving(true);
+    setStatusMessage(null);
+    setErrorMessage(null);
+    try {
+      const settings = await saveGuildWorkflowSettings({
+        defaultTargetChannels: parseSettingsList(targetChannelsValue),
+        inactiveExcludedCategories: parseSettingsList(inactiveCategoriesValue),
+      });
+      setTargetChannelsValue(formatSettingsList(settings.defaultTargetChannels));
+      setInactiveCategoriesValue(
+        formatSettingsList(settings.inactiveExcludedCategories),
+      );
+      setStatusMessage("Workflow defaults saved.");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setWorkflowSaving(false);
     }
   };
 
@@ -188,6 +256,49 @@ export const ServerSettingsPanel = () => {
           </p>
         </div>
       </header>
+
+      <section className={styles.workflowSection}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <span className={styles.eyebrow}>Workflow defaults</span>
+            <h3>Scan presets</h3>
+          </div>
+        </div>
+        <form className={styles.settingsForm} onSubmit={handleSaveWorkflowSettings}>
+          <label>
+            Default target channels
+            <textarea
+              value={targetChannelsValue}
+              onChange={(event) => setTargetChannelsValue(event.target.value)}
+              placeholder="general&#10;in-between"
+              rows={4}
+              disabled={workflowLoading || workflowSaving}
+            />
+            <small>Used by zero-message scan presets.</small>
+          </label>
+          <label>
+            Default excluded categories
+            <textarea
+              value={inactiveCategoriesValue}
+              onChange={(event) => setInactiveCategoriesValue(event.target.value)}
+              placeholder="Affiliate Vendors&#10;Private"
+              rows={4}
+              disabled={workflowLoading || workflowSaving}
+            />
+            <small>
+              Applied automatically to zero-message, inactive-member, and channel
+              archive workflows.
+            </small>
+          </label>
+          <button
+            type="submit"
+            className="primary-button"
+            disabled={workflowLoading || workflowSaving}
+          >
+            {workflowSaving ? "Saving..." : "Save workflow defaults"}
+          </button>
+        </form>
+      </section>
 
       <section className={styles.ignoreSection}>
         <div className={styles.sectionHeader}>

@@ -5,10 +5,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ArchiveChannelsPanel } from "./ArchiveChannelsPanel";
 import { requestArchiveChannels } from "../../services/archive/archiveChannels";
+import { fetchDefaultInactiveCategories } from "../../services/inactivity/inactiveDefaults";
 import type { ArchiveChannelsResponse } from "../../models/types";
 
 vi.mock("../../services/archive/archiveChannels", () => ({
   requestArchiveChannels: vi.fn(),
+}));
+
+vi.mock("../../services/inactivity/inactiveDefaults", () => ({
+  fetchDefaultInactiveCategories: vi.fn(),
 }));
 
 const previewResponse: ArchiveChannelsResponse = {
@@ -42,6 +47,7 @@ afterEach(() => {
 
 describe("ArchiveChannelsPanel", () => {
   it("requires the selected channel count before archiving channels", async () => {
+    vi.mocked(fetchDefaultInactiveCategories).mockResolvedValue(["Private"]);
     vi.mocked(requestArchiveChannels)
       .mockResolvedValueOnce(previewResponse)
       .mockResolvedValueOnce(archivedResponse);

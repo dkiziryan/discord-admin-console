@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import styles from "./ArchiveChannelsPanel.module.css";
 import type {
@@ -6,6 +6,7 @@ import type {
   ArchiveChannelsResponse,
 } from "../../models/types";
 import { requestArchiveChannels } from "../../services/archive/archiveChannels";
+import { fetchDefaultInactiveCategories } from "../../services/inactivity/inactiveDefaults";
 import { ConfirmationModal } from "../shared/ConfirmationModal";
 
 type SelectionMap = Record<string, boolean>;
@@ -26,6 +27,7 @@ export const ArchiveChannelsPanel = () => {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<ArchiveChannelsResponse | null>(null);
+  const [defaultCategories, setDefaultCategories] = useState<string[]>([]);
 
   const selectedIds = useMemo(
     () =>
@@ -42,6 +44,31 @@ export const ArchiveChannelsPanel = () => {
     const verb = result.data.action === "archive" ? "Archived" : "Deleted";
     return `${verb} ${result.data.processedCount} channel(s).`;
   }, [result]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDefaults = async () => {
+      try {
+        const categories = await fetchDefaultInactiveCategories();
+        if (!cancelled) {
+          setDefaultCategories(categories);
+        }
+      } catch {
+        // Archive previews still work without showing defaults.
+      }
+    };
+
+    void loadDefaults();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const applyDaysPreset = (nextDays: number) => {
+    setDays(nextDays);
+    setDaysInput(String(nextDays));
+  };
 
   const handlePreview = async () => {
     if (loading) {
@@ -137,6 +164,38 @@ export const ArchiveChannelsPanel = () => {
             bulk.
           </p>
         </div>
+        <div className={styles.presetBar} aria-label="Archive channel presets">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => applyDaysPreset(90)}
+            disabled={loading || processing}
+          >
+            90-day review
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => applyDaysPreset(180)}
+            disabled={loading || processing}
+          >
+            180-day review
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => applyDaysPreset(365)}
+            disabled={loading || processing}
+          >
+            365-day review
+          </button>
+        </div>
+        {defaultCategories.length > 0 && (
+          <small className={styles.defaultCategories}>
+            Defaults exclude{" "}
+            {defaultCategories.map((category) => `“${category}”`).join(", ")}
+          </small>
+        )}
         <div className={styles.controls}>
           <label>
             Inactive for (days)

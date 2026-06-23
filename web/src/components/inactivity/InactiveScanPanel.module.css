@@ -37,6 +37,12 @@
   font-weight: 400;
 }
 
+.presetBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .form .checkboxRow {
   align-items: center;
   flex-direction: row;

@@ -7,6 +7,7 @@ import { cancelScan } from "../../services/zeroMessages/cancelScan";
 import { fetchScanStatus } from "../../services/zeroMessages/scanStatus";
 import { requestZeroMessageScan } from "../../services/zeroMessages/zeroMessages";
 import { fetchDefaultInactiveCategories } from "../../services/inactivity/inactiveDefaults";
+import { fetchDefaultChannels } from "../../services/zeroMessages/defaultChannels";
 import { useScanStatusPolling } from "../../hooks/useScanStatusPolling";
 import { parseChannelInput } from "../../utils/channel";
 import { ProgressIndicator } from "../shared/ProgressIndicator";
@@ -27,12 +28,13 @@ export const ZeroMessageScanner = () => {
   const [result, setResult] = useState<ScanResponse | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [defaultChannels, setDefaultChannels] = useState<string[]>([]);
   const [defaultCategories, setDefaultCategories] = useState<string[]>([]);
   const scanRequestInFlight = useRef(false);
   const scanStartedAt = useRef<number | null>(null);
 
   useEffect(() => {
-    void loadDefaultCategories();
+    void loadDefaults();
   }, []);
 
   const elapsedSeconds = useScanStatusPolling({
@@ -98,13 +100,31 @@ export const ZeroMessageScanner = () => {
     return lines;
   }, [result]);
 
-  const loadDefaultCategories = async () => {
+  const loadDefaults = async () => {
     try {
-      const categories = await fetchDefaultInactiveCategories();
+      const [channels, categories] = await Promise.all([
+        fetchDefaultChannels(),
+        fetchDefaultInactiveCategories(),
+      ]);
+      setDefaultChannels(channels);
       setDefaultCategories(categories);
     } catch (error) {
       setErrorMessage((error as Error).message);
     }
+  };
+
+  const applyServerDefaultsPreset = () => {
+    setChannelInput(defaultChannels.join("\n"));
+    setDryRun(false);
+    setCountReactionsAsActivity(false);
+    setFastScan(false);
+  };
+
+  const applyFastAllChannelsPreset = () => {
+    setChannelInput("");
+    setDryRun(false);
+    setCountReactionsAsActivity(false);
+    setFastScan(true);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -177,6 +197,24 @@ export const ZeroMessageScanner = () => {
       {activeView === "scan" ? (
         <>
           <form onSubmit={handleSubmit} className={styles.controlPanel}>
+            <div className={styles.presetBar} aria-label="Zero-message presets">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={applyServerDefaultsPreset}
+                disabled={loading}
+              >
+                Server defaults
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={applyFastAllChannelsPreset}
+                disabled={loading}
+              >
+                Fast all-channel scan
+              </button>
+            </div>
             <label htmlFor="channelInput">
               Target channel names (newline or comma separated). Leave blank to scan all eligible channels.
             </label>

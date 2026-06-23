@@ -76,4 +76,21 @@ describe("InactiveScanPanel", () => {
       maxMessagesPerChannel: 5000,
     });
   });
+
+  it("applies the 365-day full scan preset", async () => {
+    vi.mocked(fetchDefaultInactiveCategories).mockResolvedValue([]);
+    vi.mocked(fetchInactiveStatus).mockResolvedValue(null);
+
+    render(<InactiveScanPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "365-day full scan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Scan inactive members" }));
+
+    expect(requestInactiveScan).toHaveBeenCalledWith({
+      days: 365,
+      excludedCategories: undefined,
+      countReactionsAsActivity: false,
+      maxMessagesPerChannel: undefined,
+    });
+  });
 });

@@ -25,6 +25,16 @@
   margin: 0;
 }
 
+.presetBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.defaultCategories {
+  color: var(--discord-text-subtle);
+}
+
 .controls {
   align-items: flex-end;
   display: flex;
