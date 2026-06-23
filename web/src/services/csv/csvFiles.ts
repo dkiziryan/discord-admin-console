@@ -3,7 +3,7 @@ import type {
   CsvFileMetadata,
   CsvRowsResponse,
 } from "../../models/types";
-import { apiJson } from "../apiClient";
+import { apiJson, apiVoid } from "../apiClient";
 
 export const fetchCsvFiles = async (): Promise<CsvFileMetadata[]> => {
   const payload = await apiJson<CsvFileListResponse>("/api/csv-files", {
@@ -14,6 +14,12 @@ export const fetchCsvFiles = async (): Promise<CsvFileMetadata[]> => {
 
 export const buildCsvDownloadUrl = (filename: string): string =>
   `/api/csv-files/${encodeURIComponent(filename)}/download`;
+
+export const deleteCsvFile = async (filename: string): Promise<void> =>
+  apiVoid(`/api/csv-files/${encodeURIComponent(filename)}`, {
+    errorMessage: "Failed to delete CSV file.",
+    method: "DELETE",
+  });
 
 export const fetchCsvRows = async ({
   filename,

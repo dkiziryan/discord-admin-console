@@ -6,20 +6,28 @@ import type {
   KickFromCsvFileResult,
   KickFromCsvResponse,
 } from "../../models/types";
-import { fetchCsvFiles } from "../../services/csv/csvFiles";
+import { deleteCsvFile, fetchCsvFiles } from "../../services/csv/csvFiles";
 import { kickFromCsv } from "../../services/csv/kickFromCsv";
 import { cancelKickJob } from "../../services/csv/cancelKick";
 import { CsvDownloadButton } from "../shared/CsvDownloadButton";
+import { ConfirmationModal } from "../shared/ConfirmationModal";
+
+const CSV_LIST_PAGE_SIZE = 10;
 
 export const KickFromCsvPanel = () => {
   const [files, setFiles] = useState<CsvFileMetadata[]>([]);
   const [selectedMap, setSelectedMap] = useState<Record<string, boolean>>({});
+  const [filePage, setFilePage] = useState(1);
   const [dryRun, setDryRun] = useState(true);
   const [kicking, setKicking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [results, setResults] = useState<KickFromCsvFileResult[] | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [deletingFilename, setDeletingFilename] = useState<string | null>(null);
+  const [deleteCandidateFilename, setDeleteCandidateFilename] = useState<
+    string | null
+  >(null);
 
   const selectedFilenames = useMemo(
     () =>
@@ -28,10 +36,25 @@ export const KickFromCsvPanel = () => {
         .map((file) => file.filename),
     [files, selectedMap]
   );
+  const totalFilePages = Math.max(
+    1,
+    Math.ceil(files.length / CSV_LIST_PAGE_SIZE),
+  );
+  const visibleFiles = useMemo(() => {
+    const startIndex = (filePage - 1) * CSV_LIST_PAGE_SIZE;
+    return files.slice(startIndex, startIndex + CSV_LIST_PAGE_SIZE);
+  }, [filePage, files]);
+  const fileStart =
+    files.length === 0 ? 0 : (filePage - 1) * CSV_LIST_PAGE_SIZE + 1;
+  const fileEnd = Math.min(files.length, filePage * CSV_LIST_PAGE_SIZE);
 
   useEffect(() => {
     void refresh();
   }, []);
+
+  useEffect(() => {
+    setFilePage((current) => Math.min(current, totalFilePages));
+  }, [totalFilePages]);
 
   const refresh = async () => {
     try {
@@ -56,6 +79,32 @@ export const KickFromCsvPanel = () => {
       ...prev,
       [filename]: !prev[filename],
     }));
+  };
+
+  const handleDelete = async () => {
+    const filename = deleteCandidateFilename;
+    if (!filename || kicking || deletingFilename) {
+      return;
+    }
+
+    setDeletingFilename(filename);
+    setStatusMessage(null);
+    setErrorMessage(null);
+    try {
+      await deleteCsvFile(filename);
+      setSelectedMap((prev) => {
+        const next = { ...prev };
+        delete next[filename];
+        return next;
+      });
+      await refresh();
+      setStatusMessage("CSV export deleted.");
+      setDeleteCandidateFilename(null);
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setDeletingFilename(null);
+    }
   };
 
   const handleKick = async () => {
@@ -135,32 +184,72 @@ export const KickFromCsvPanel = () => {
               No CSV exports found in the csv/ directory.
             </p>
           ) : (
-            <ul>
-              {files.map((file) => (
-                <li key={file.filename} className={styles.csvItem}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(selectedMap[file.filename])}
-                      onChange={() => toggleSelection(file.filename)}
-                      disabled={kicking}
+            <>
+              <ul>
+                {visibleFiles.map((file) => (
+                  <li key={file.filename} className={styles.csvItem}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(selectedMap[file.filename])}
+                        onChange={() => toggleSelection(file.filename)}
+                        disabled={kicking}
+                      />
+                      <span>
+                        <strong>{file.filename}</strong>
+                        <small>{formatCsvFileDetail(file)}</small>
+                      </span>
+                    </label>
+                    <CsvDownloadButton
+                      className={styles.downloadLink}
+                      filename={file.filename}
+                      label="Download"
+                      size="compact"
                     />
-                    <span>
-                      <strong>{file.filename}</strong>
-                      <small>
-                        {formatCsvFileDetail(file)}
-                      </small>
-                    </span>
-                  </label>
-                  <CsvDownloadButton
-                    className={styles.downloadLink}
-                    filename={file.filename}
-                    label="Download"
-                    size="compact"
-                  />
-                </li>
-              ))}
-            </ul>
+                    <button
+                      type="button"
+                      aria-label={`Delete ${file.filename}`}
+                      className={`${styles.deleteButton} secondary-button secondary-button--danger`}
+                      disabled={kicking || deletingFilename === file.filename}
+                      onClick={() => setDeleteCandidateFilename(file.filename)}
+                    >
+                      Delete
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {files.length > CSV_LIST_PAGE_SIZE && (
+                <div className={styles.listPagination}>
+                  <span className={styles.pageCount}>
+                    {fileStart}-{fileEnd} of {files.length}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Previous CSV export page"
+                    className="secondary-button"
+                    disabled={filePage <= 1}
+                    onClick={() =>
+                      setFilePage((current) => Math.max(1, current - 1))
+                    }
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next CSV export page"
+                    className="secondary-button"
+                    disabled={filePage >= totalFilePages}
+                    onClick={() =>
+                      setFilePage((current) =>
+                        Math.min(totalFilePages, current + 1),
+                      )
+                    }
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -248,6 +337,20 @@ export const KickFromCsvPanel = () => {
           ))}
         </div>
       )}
+      <ConfirmationModal
+        confirmLabel="Delete CSV"
+        confirmingLabel="Deleting..."
+        isConfirming={Boolean(deletingFilename)}
+        isOpen={Boolean(deleteCandidateFilename)}
+        message={`Are you sure you want to delete ${deleteCandidateFilename ?? "this CSV export"}?`}
+        onCancel={() => {
+          if (!deletingFilename) {
+            setDeleteCandidateFilename(null);
+          }
+        }}
+        onConfirm={() => void handleDelete()}
+        title="Delete CSV export"
+      />
     </section>
   );
 };

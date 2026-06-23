@@ -4,7 +4,7 @@ import type {
   CsvFileListResponse,
   CsvRowsResponse,
 } from "../models/types";
-import { listCsvFiles } from "../services/csv/csvManager";
+import { deleteCsvFile, listCsvFiles } from "../services/csv/csvManager";
 import { buildCsvRowsPage } from "../services/csv/csvRows";
 import { readScopedCsvFile } from "../services/csv/csvStorage";
 
@@ -69,6 +69,30 @@ export const registerCsvRoutes = (
       );
       res.setHeader("Content-Length", String(csvFile.size));
       res.send(csvFile.contents);
+    } catch (error) {
+      const message = (error as Error).message;
+      const status = message.includes("not found") ? 404 : 400;
+      res.status(status).json({ message });
+    }
+  });
+
+  app.delete("/api/csv-files/:filename", async (req, res) => {
+    const activeGuildId = requireSelectedGuildId(req, res);
+    if (!activeGuildId) {
+      return;
+    }
+
+    const discordUserId = requireAuthenticatedDiscordUserId(req, res);
+    if (!discordUserId) {
+      return;
+    }
+
+    try {
+      await deleteCsvFile(req.params.filename, {
+        guildId: activeGuildId,
+        discordUserId,
+      });
+      res.json({ message: "CSV export deleted." });
     } catch (error) {
       const message = (error as Error).message;
       const status = message.includes("not found") ? 404 : 400;

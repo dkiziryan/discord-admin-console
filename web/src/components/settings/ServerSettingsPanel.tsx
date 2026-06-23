@@ -12,6 +12,7 @@ import {
 } from "../../services/settings/ignoredUsers";
 
 const DISCORD_USER_ID_PATTERN = /^\d{5,25}$/;
+const USER_LIST_PAGE_SIZE = 10;
 
 const hasImportableUserId = (contents: string): boolean => {
   const lines = contents.split(/\r?\n/);
@@ -29,6 +30,7 @@ export const ServerSettingsPanel = () => {
   const [ignoredUsers, setIgnoredUsers] = useState<IgnoredUser[]>([]);
   const [discordUserId, setDiscordUserId] = useState("");
   const [username, setUsername] = useState("");
+  const [userPage, setUserPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -53,6 +55,25 @@ export const ServerSettingsPanel = () => {
     void loadIgnoredUsers();
   }, []);
 
+  const totalUserPages = Math.max(
+    1,
+    Math.ceil(ignoredUsers.length / USER_LIST_PAGE_SIZE),
+  );
+  const visibleIgnoredUsers = ignoredUsers.slice(
+    (userPage - 1) * USER_LIST_PAGE_SIZE,
+    userPage * USER_LIST_PAGE_SIZE,
+  );
+  const userStart =
+    ignoredUsers.length === 0 ? 0 : (userPage - 1) * USER_LIST_PAGE_SIZE + 1;
+  const userEnd = Math.min(
+    ignoredUsers.length,
+    userPage * USER_LIST_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setUserPage((current) => Math.min(current, totalUserPages));
+  }, [totalUserPages]);
+
   const handleAdd = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (saving) {
@@ -66,6 +87,7 @@ export const ServerSettingsPanel = () => {
       await addIgnoredUser(discordUserId, username);
       setDiscordUserId("");
       setUsername("");
+      setUserPage(1);
       setStatusMessage("Ignored user added.");
       await loadIgnoredUsers();
     } catch (error) {
@@ -115,6 +137,7 @@ export const ServerSettingsPanel = () => {
       setStatusMessage(
         `Imported ${result.addedCount} user(s). ${result.skippedCount} duplicate(s) skipped.`,
       );
+      setUserPage(1);
       await loadIgnoredUsers();
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -247,27 +270,60 @@ export const ServerSettingsPanel = () => {
         ) : ignoredUsers.length === 0 ? (
           <p className={styles.empty}>No ignored users for this server.</p>
         ) : (
-          <ul className={styles.userList}>
-            {ignoredUsers.map((user) => (
-              <li key={user.id}>
-                <span className={styles.userPrimary}>
-                  {user.username ? <strong>{user.username}</strong> : null}
-                  <code>{user.discordUserId}</code>
-                </span>
-                <span className={styles.addedDate}>
-                  {new Date(user.createdAt).toLocaleDateString()}
+          <>
+            <ul className={styles.userList}>
+              {visibleIgnoredUsers.map((user) => (
+                <li key={user.id}>
+                  <span className={styles.userPrimary}>
+                    {user.username ? <strong>{user.username}</strong> : null}
+                    <code>{user.discordUserId}</code>
+                  </span>
+                  <span className={styles.addedDate}>
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </span>
+                  <button
+                    type="button"
+                    className="secondary-button secondary-button--danger"
+                    onClick={() => void handleRemove(user.discordUserId)}
+                    disabled={saving}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {ignoredUsers.length > USER_LIST_PAGE_SIZE && (
+              <div className={styles.pagination}>
+                <span className={styles.pageCount}>
+                  {userStart}-{userEnd} of {ignoredUsers.length}
                 </span>
                 <button
                   type="button"
-                  className="secondary-button secondary-button--danger"
-                  onClick={() => void handleRemove(user.discordUserId)}
-                  disabled={saving}
+                  aria-label="Previous ignored users page"
+                  className="secondary-button"
+                  disabled={userPage <= 1}
+                  onClick={() =>
+                    setUserPage((current) => Math.max(1, current - 1))
+                  }
                 >
-                  Remove
+                  Previous
                 </button>
-              </li>
-            ))}
-          </ul>
+                <button
+                  type="button"
+                  aria-label="Next ignored users page"
+                  className="secondary-button"
+                  disabled={userPage >= totalUserPages}
+                  onClick={() =>
+                    setUserPage((current) =>
+                      Math.min(totalUserPages, current + 1),
+                    )
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
     </section>

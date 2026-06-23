@@ -106,12 +106,7 @@ export const readScopedCsvFile = async (
 
   const csvDirectory = getScopedCsvDirectory(scope);
   await fs.mkdir(csvDirectory, { recursive: true });
-  const filepath = path.resolve(csvDirectory, safeFilename);
-
-  const relative = path.relative(csvDirectory, filepath);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error("Invalid CSV filename.");
-  }
+  const filepath = resolveScopedLocalCsvPath(safeFilename, scope);
 
   try {
     const stats = await fs.stat(filepath);
@@ -121,6 +116,28 @@ export const readScopedCsvFile = async (
       filename: safeFilename,
       size: stats.size,
     };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error(`CSV file not found: ${filename}`);
+    }
+    throw error;
+  }
+};
+
+export const deleteScopedCsvFile = async (
+  filename: string,
+  scope: CsvOwnerScope,
+): Promise<void> => {
+  const safeFilename = resolveCsvFilename(filename);
+
+  if (getCsvStorageDriver() === "s3") {
+    await deleteS3Object(getScopedCsvObjectKey(safeFilename, scope));
+    return;
+  }
+
+  const filepath = resolveScopedLocalCsvPath(safeFilename, scope);
+  try {
+    await fs.unlink(filepath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       throw new Error(`CSV file not found: ${filename}`);
@@ -226,6 +243,20 @@ const getScopedCsvObjectKey = (
   ].join("/");
 };
 
+const resolveScopedLocalCsvPath = (
+  filename: string,
+  scope: CsvOwnerScope,
+): string => {
+  const csvDirectory = getScopedCsvDirectory(scope);
+  const filepath = path.resolve(csvDirectory, filename);
+  const relative = path.relative(csvDirectory, filepath);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("Invalid CSV filename.");
+  }
+
+  return filepath;
+};
+
 const calculateDirectorySize = async (directory: string): Promise<number> => {
   let entries: Dirent[];
   try {
@@ -288,7 +319,7 @@ type S3Config = {
 type S3RequestOptions = {
   body?: string;
   contentType?: string;
-  method: "GET" | "PUT";
+  method: "DELETE" | "GET" | "PUT";
   query?: Record<string, string>;
 };
 
@@ -342,6 +373,16 @@ const getS3Object = async (
     body,
     size: Buffer.byteLength(body, "utf8"),
   };
+};
+
+const deleteS3Object = async (key: string): Promise<void> => {
+  const response = await signedS3Request(key, { method: "DELETE" });
+  if (response.status === 404) {
+    throw new Error(`CSV file not found: ${path.basename(key)}`);
+  }
+  if (!response.ok) {
+    throw new Error(await buildS3ErrorMessage(response, "delete CSV"));
+  }
 };
 
 const listS3CsvFiles = async (

@@ -2,10 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 
 import styles from "./CsvExportsPanel.module.css";
 import type { CsvFileMetadata, CsvRowsResponse } from "../../models/types";
-import { fetchCsvFiles, fetchCsvRows } from "../../services/csv/csvFiles";
+import {
+  deleteCsvFile,
+  fetchCsvFiles,
+  fetchCsvRows,
+} from "../../services/csv/csvFiles";
 import { CsvDownloadButton } from "../shared/CsvDownloadButton";
+import { ConfirmationModal } from "../shared/ConfirmationModal";
 
-const PAGE_SIZE = 25;
+const CSV_LIST_PAGE_SIZE = 10;
+const CSV_ROWS_PAGE_SIZE = 25;
 
 export const CsvExportsPanel = () => {
   const [files, setFiles] = useState<CsvFileMetadata[]>([]);
@@ -13,8 +19,14 @@ export const CsvExportsPanel = () => {
   const [csvRows, setCsvRows] = useState<CsvRowsResponse | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [filePage, setFilePage] = useState(1);
   const [loadingFiles, setLoadingFiles] = useState(true);
   const [loadingRows, setLoadingRows] = useState(false);
+  const [deletingFilename, setDeletingFilename] = useState<string | null>(null);
+  const [deleteCandidateFilename, setDeleteCandidateFilename] = useState<
+    string | null
+  >(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,6 +67,7 @@ export const CsvExportsPanel = () => {
   const refreshFiles = async () => {
     setLoadingFiles(true);
     setErrorMessage(null);
+    setStatusMessage(null);
     try {
       const fetchedFiles = await fetchCsvFiles();
       setFiles(fetchedFiles);
@@ -87,7 +100,7 @@ export const CsvExportsPanel = () => {
           const rows = await fetchCsvRows({
             filename: selectedFilename,
             page,
-            pageSize: PAGE_SIZE,
+            pageSize: CSV_ROWS_PAGE_SIZE,
             search,
           });
           if (!cancelled) {
@@ -121,6 +134,21 @@ export const CsvExportsPanel = () => {
     () => files.find((file) => file.filename === selectedFilename) ?? null,
     [files, selectedFilename],
   );
+  const totalFilePages = Math.max(
+    1,
+    Math.ceil(files.length / CSV_LIST_PAGE_SIZE),
+  );
+  const visibleFiles = useMemo(() => {
+    const startIndex = (filePage - 1) * CSV_LIST_PAGE_SIZE;
+    return files.slice(startIndex, startIndex + CSV_LIST_PAGE_SIZE);
+  }, [filePage, files]);
+  const fileStart =
+    files.length === 0 ? 0 : (filePage - 1) * CSV_LIST_PAGE_SIZE + 1;
+  const fileEnd = Math.min(files.length, filePage * CSV_LIST_PAGE_SIZE);
+
+  useEffect(() => {
+    setFilePage((current) => Math.min(current, totalFilePages));
+  }, [totalFilePages]);
 
   const handleSelectFile = (filename: string) => {
     setSelectedFilename(filename);
@@ -132,6 +160,33 @@ export const CsvExportsPanel = () => {
   const handleSearch = (value: string) => {
     setSearch(value);
     setPage(1);
+  };
+
+  const handleDeleteFile = async () => {
+    const filename = deleteCandidateFilename;
+    if (!filename || deletingFilename) {
+      return;
+    }
+
+    setDeletingFilename(filename);
+    setErrorMessage(null);
+    setStatusMessage(null);
+    try {
+      await deleteCsvFile(filename);
+      if (filename === selectedFilename) {
+        setSelectedFilename(null);
+        setCsvRows(null);
+        setSearch("");
+        setPage(1);
+      }
+      await refreshFiles();
+      setStatusMessage("CSV export deleted.");
+      setDeleteCandidateFilename(null);
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setDeletingFilename(null);
+    }
   };
 
   return (
@@ -151,6 +206,7 @@ export const CsvExportsPanel = () => {
         </button>
       </div>
 
+      {statusMessage && <p className="status success">{statusMessage}</p>}
       {errorMessage && <p className="status error">{errorMessage}</p>}
 
       <div className={styles.layout}>
@@ -160,34 +216,76 @@ export const CsvExportsPanel = () => {
           ) : files.length === 0 ? (
             <p className={styles.empty}>No CSV exports found.</p>
           ) : (
-            <ul>
-              {files.map((file) => (
-                <li
-                  key={file.filename}
-                  className={`${styles.fileItem} ${
-                    file.filename === selectedFilename ? styles.selectedFile : ""
-                  }`}
-                >
+            <>
+              <ul>
+                {visibleFiles.map((file) => (
+                  <li
+                    key={file.filename}
+                    className={`${styles.fileItem} ${
+                      file.filename === selectedFilename
+                        ? styles.selectedFile
+                        : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      className={styles.fileButton}
+                      onClick={() => handleSelectFile(file.filename)}
+                    >
+                      <strong>{file.filename}</strong>
+                      <small>{formatCsvFileDetail(file)}</small>
+                    </button>
+                    <CsvDownloadButton
+                      className={styles.fileDownload}
+                      filename={file.filename}
+                      iconOnly
+                      label={`Download ${file.filename}`}
+                      size="compact"
+                    />
+                    <button
+                      type="button"
+                      aria-label={`Delete ${file.filename}`}
+                      className={`${styles.fileDelete} secondary-button secondary-button--danger`}
+                      disabled={deletingFilename === file.filename}
+                      onClick={() => setDeleteCandidateFilename(file.filename)}
+                    >
+                      Delete
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {files.length > CSV_LIST_PAGE_SIZE && (
+                <div className={styles.listPagination}>
+                  <span className={styles.pageCount}>
+                    {fileStart}-{fileEnd} of {files.length}
+                  </span>
                   <button
                     type="button"
-                    className={styles.fileButton}
-                    onClick={() => handleSelectFile(file.filename)}
+                    aria-label="Previous CSV export page"
+                    className="secondary-button"
+                    disabled={filePage <= 1}
+                    onClick={() =>
+                      setFilePage((current) => Math.max(1, current - 1))
+                    }
                   >
-                    <strong>{file.filename}</strong>
-                    <small>
-                      {formatCsvFileDetail(file)}
-                    </small>
+                    Previous
                   </button>
-                  <CsvDownloadButton
-                    className={styles.fileDownload}
-                    filename={file.filename}
-                    iconOnly
-                    label={`Download ${file.filename}`}
-                    size="compact"
-                  />
-                </li>
-              ))}
-            </ul>
+                  <button
+                    type="button"
+                    aria-label="Next CSV export page"
+                    className="secondary-button"
+                    disabled={filePage >= totalFilePages}
+                    onClick={() =>
+                      setFilePage((current) =>
+                        Math.min(totalFilePages, current + 1),
+                      )
+                    }
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </aside>
 
@@ -277,6 +375,20 @@ export const CsvExportsPanel = () => {
           )}
         </section>
       </div>
+      <ConfirmationModal
+        confirmLabel="Delete CSV"
+        confirmingLabel="Deleting..."
+        isConfirming={Boolean(deletingFilename)}
+        isOpen={Boolean(deleteCandidateFilename)}
+        message={`Are you sure you want to delete ${deleteCandidateFilename ?? "this CSV export"}?`}
+        onCancel={() => {
+          if (!deletingFilename) {
+            setDeleteCandidateFilename(null);
+          }
+        }}
+        onConfirm={() => void handleDeleteFile()}
+        title="Delete CSV export"
+      />
     </section>
   );
 };

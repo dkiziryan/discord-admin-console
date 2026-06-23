@@ -167,10 +167,23 @@
   padding: 0.4rem 0.7rem;
 }
 
+.pagination {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.pageCount {
+  color: var(--discord-text-muted);
+  font-weight: 700;
+}
+
 @media (max-width: 760px) {
   .sectionHeader,
   .addForm,
-  .userList li {
+  .userList li,
+  .pagination {
     align-items: stretch;
     display: flex;
     flex-direction: column;

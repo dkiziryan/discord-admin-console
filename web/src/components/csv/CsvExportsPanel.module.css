@@ -51,7 +51,7 @@
   border-radius: var(--discord-radius-md);
   display: grid;
   gap: 0.7rem;
-  grid-template-columns: minmax(0, 1fr) 30px;
+  grid-template-columns: minmax(0, 1fr) 30px auto;
   padding: 0.65rem 0.7rem;
 }
 
@@ -97,6 +97,20 @@
 .fileDownload {
   align-self: center;
   justify-self: end;
+}
+
+.fileDelete {
+  font-size: 0.78rem;
+  min-height: 30px;
+  padding: 0.3rem 0.45rem;
+}
+
+.listPagination {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.85rem;
 }
 
 .viewerHeader {
@@ -197,7 +211,8 @@
 @media (max-width: 860px) {
   .header,
   .viewerHeader,
-  .pagination {
+  .pagination,
+  .listPagination {
     align-items: stretch;
     flex-direction: column;
   }

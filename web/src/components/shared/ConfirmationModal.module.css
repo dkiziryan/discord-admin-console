@@ -1,0 +1,57 @@
+.backdrop {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.62);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--discord-bg-raised);
+  border: 1px solid var(--discord-border-strong);
+  border-radius: var(--discord-radius-lg);
+  box-shadow: var(--discord-shadow);
+  color: var(--discord-text);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: min(100%, 440px);
+  padding: 1.25rem;
+  width: 100%;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.content h2,
+.content p {
+  margin: 0;
+}
+
+.content h2 {
+  font-size: 1.1rem;
+}
+
+.content p {
+  color: var(--discord-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 520px) {
+  .actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+}
