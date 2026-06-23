@@ -218,7 +218,7 @@ export const InactiveScanPanel = () => {
           />
         </label>
         <label>
-          Extra categories to exclude (comma or newline separated)
+          Excluded categories
           <textarea
             value={excludedValue}
             onChange={(event) => setExcludedValue(event.target.value)}

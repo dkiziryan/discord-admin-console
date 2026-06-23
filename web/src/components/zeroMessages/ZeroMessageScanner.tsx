@@ -215,9 +215,7 @@ export const ZeroMessageScanner = () => {
                 Fast all-channel scan
               </button>
             </div>
-            <label htmlFor="channelInput">
-              Target channel names (newline or comma separated). Leave blank to scan all eligible channels.
-            </label>
+            <label htmlFor="channelInput">Target channels</label>
             <textarea
               id="channelInput"
               placeholder="general&#10;in-between"

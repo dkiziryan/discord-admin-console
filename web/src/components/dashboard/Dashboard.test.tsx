@@ -50,6 +50,7 @@ describe("Dashboard", () => {
     );
 
     expect(await screen.findByText("Inactive-member scan")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Server settings/ })).toBeNull();
     expect(screen.getByText("Running now")).toBeTruthy();
     await waitFor(() => {
       expect(fetchJobHistory).toHaveBeenCalledWith(6);

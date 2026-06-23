@@ -41,6 +41,13 @@ export const AdminDashboardView = ({
     });
   };
 
+  const openServerSettings = () => {
+    setActivePanelRequest({
+      key: Date.now(),
+      panel: "settings",
+    });
+  };
+
   return (
     <div className={styles.app}>
       <header className={styles.hero}>
@@ -57,6 +64,7 @@ export const AdminDashboardView = ({
           <UserBadge
             user={authState.user}
             onOpenActivityHistory={openActivityHistory}
+            onOpenServerSettings={openServerSettings}
             onLogout={logout}
           />
         )}

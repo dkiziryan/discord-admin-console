@@ -11,10 +11,12 @@ import {
 export const UserBadge = ({
   user,
   onOpenActivityHistory,
+  onOpenServerSettings,
   onLogout,
 }: {
   user: AuthUser;
   onOpenActivityHistory: () => void;
+  onOpenServerSettings: () => void;
   onLogout: () => void;
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -79,6 +81,10 @@ export const UserBadge = ({
     setMenuOpen(false);
     onOpenActivityHistory();
   };
+  const openServerSettings = () => {
+    setMenuOpen(false);
+    onOpenServerSettings();
+  };
   const handleProductionDataToggle = async (enabled: boolean) => {
     const settings = await updateLocalDevSettings(enabled);
     setLocalDevSettings(settings);
@@ -120,6 +126,9 @@ export const UserBadge = ({
             )}
             <strong>{user.username}</strong>
           </div>
+          <button type="button" onClick={openServerSettings}>
+            Server settings
+          </button>
           <button type="button" onClick={openActivityHistory}>
             Activity history
           </button>

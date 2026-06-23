@@ -208,7 +208,7 @@ export const Dashboard = ({
       />
       <ul className={styles.ctaList}>
         {Object.entries(panels)
-          .filter(([key]) => key !== "activity")
+          .filter(([key]) => key !== "activity" && key !== "settings")
           .map(([key, panel]) => (
             <li key={key}>
               <button

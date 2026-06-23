@@ -66,6 +66,9 @@ describe("InactiveScanPanel", () => {
 
     render(<InactiveScanPanel />);
 
+    expect(screen.getByLabelText(/Excluded categories/)).toBeTruthy();
+    expect(screen.queryByText(/Extra categories to exclude/)).toBeNull();
+
     fireEvent.click(screen.getByRole("button", { name: "Scan inactive members" }));
 
     expect(await screen.findByText("Alice")).toBeTruthy();

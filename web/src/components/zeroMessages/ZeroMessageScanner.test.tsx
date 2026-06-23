@@ -88,11 +88,12 @@ describe("ZeroMessageScanner", () => {
     render(<ZeroMessageScanner />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Target channel names/)).toHaveProperty(
+      expect(screen.getByLabelText("Target channels")).toHaveProperty(
         "value",
         "",
       );
     });
+    expect(screen.queryByText(/Target channel names/)).toBeNull();
     expect(screen.getByText(/Default excluded categories:/)).toBeTruthy();
     expect(screen.getByText(/Affiliate Vendors/)).toBeTruthy();
     expect(screen.getByText(/Private/)).toBeTruthy();
@@ -152,7 +153,7 @@ describe("ZeroMessageScanner", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Server defaults" }));
 
-    expect(screen.getByLabelText(/Target channel names/)).toHaveProperty(
+    expect(screen.getByLabelText("Target channels")).toHaveProperty(
       "value",
       "general\nsupport",
     );
