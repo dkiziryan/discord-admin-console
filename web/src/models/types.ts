@@ -72,6 +72,12 @@ export type CsvFileMetadata = {
   size: number;
   modifiedAt: string;
   rowCount?: number;
+  jobId?: string | null;
+  jobType?: string | null;
+  jobStatus?: string | null;
+  jobCreatedAt?: string | null;
+  jobFinishedAt?: string | null;
+  createdByUsername?: string | null;
 };
 
 export type CsvFileListResponse = {

@@ -44,6 +44,38 @@
   padding: 0;
 }
 
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+}
+
+.filterControl {
+  color: var(--discord-text);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.82rem;
+  font-weight: 700;
+  gap: 0.3rem;
+}
+
+.filterControl select {
+  background: var(--discord-bg-deep);
+  border: 1px solid var(--discord-border-strong);
+  border-radius: var(--discord-radius-md);
+  color: var(--discord-text);
+  font: inherit;
+  min-height: 36px;
+  padding: 0.45rem 0.55rem;
+}
+
+.filterControl select:focus {
+  border-color: var(--discord-blurple);
+  box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.28);
+  outline: none;
+}
+
 .fileItem {
   align-items: center;
   background: var(--discord-bg-floating);
@@ -94,6 +126,25 @@
   line-height: 1.25;
 }
 
+.fileBadges,
+.viewerMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.badge,
+.viewerMeta span {
+  background: rgba(88, 101, 242, 0.12);
+  border: 1px solid rgba(88, 101, 242, 0.28);
+  border-radius: var(--discord-radius-sm);
+  color: var(--discord-text);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 0.18rem 0.35rem;
+}
+
 .fileDownload {
   align-self: center;
   justify-self: end;
@@ -129,6 +180,10 @@
 .viewerHeader p {
   color: var(--discord-text-muted);
   margin-top: 0.25rem;
+}
+
+.viewerMeta {
+  margin-top: 0.55rem;
 }
 
 .searchLabel {

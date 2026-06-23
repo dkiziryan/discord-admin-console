@@ -7,11 +7,21 @@ import {
   fetchCsvFiles,
   fetchCsvRows,
 } from "../../services/csv/csvFiles";
+import { formatJobDate, formatJobStatus, formatJobType } from "../../utils/jobHistory";
 import { CsvDownloadButton } from "../shared/CsvDownloadButton";
 import { ConfirmationModal } from "../shared/ConfirmationModal";
 
 const CSV_LIST_PAGE_SIZE = 10;
 const CSV_ROWS_PAGE_SIZE = 25;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+type CsvDateFilter = "all" | "7d" | "30d";
+
+const DATE_FILTER_OPTIONS: { label: string; value: CsvDateFilter }[] = [
+  { label: "All dates", value: "all" },
+  { label: "Last 7 days", value: "7d" },
+  { label: "Last 30 days", value: "30d" },
+];
 
 export const CsvExportsPanel = () => {
   const [files, setFiles] = useState<CsvFileMetadata[]>([]);
@@ -20,6 +30,9 @@ export const CsvExportsPanel = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [filePage, setFilePage] = useState(1);
+  const [workflowFilter, setWorkflowFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState<CsvDateFilter>("all");
   const [loadingFiles, setLoadingFiles] = useState(true);
   const [loadingRows, setLoadingRows] = useState(false);
   const [deletingFilename, setDeletingFilename] = useState<string | null>(null);
@@ -130,25 +143,77 @@ export const CsvExportsPanel = () => {
     };
   }, [page, search, selectedFilename]);
 
+  const workflowOptions = useMemo(() => {
+    return Array.from(
+      new Set(files.map((file) => file.jobType).filter(isPresentString)),
+    ).sort((first, second) =>
+      formatJobType(first).localeCompare(formatJobType(second)),
+    );
+  }, [files]);
+  const statusOptions = useMemo(() => {
+    return Array.from(
+      new Set(files.map((file) => file.jobStatus).filter(isPresentString)),
+    ).sort((first, second) =>
+      formatCsvStatus(first).localeCompare(formatCsvStatus(second)),
+    );
+  }, [files]);
+  const filteredFiles = useMemo(() => {
+    return files.filter((file) => {
+      const matchesWorkflow =
+        workflowFilter === "all" || file.jobType === workflowFilter;
+      const matchesStatus =
+        statusFilter === "all" || file.jobStatus === statusFilter;
+      return (
+        matchesWorkflow &&
+        matchesStatus &&
+        matchesDateFilter(file, dateFilter)
+      );
+    });
+  }, [dateFilter, files, statusFilter, workflowFilter]);
+  const hasActiveFileFilters =
+    workflowFilter !== "all" || statusFilter !== "all" || dateFilter !== "all";
   const selectedFile = useMemo(
     () => files.find((file) => file.filename === selectedFilename) ?? null,
     [files, selectedFilename],
   );
   const totalFilePages = Math.max(
     1,
-    Math.ceil(files.length / CSV_LIST_PAGE_SIZE),
+    Math.ceil(filteredFiles.length / CSV_LIST_PAGE_SIZE),
   );
   const visibleFiles = useMemo(() => {
     const startIndex = (filePage - 1) * CSV_LIST_PAGE_SIZE;
-    return files.slice(startIndex, startIndex + CSV_LIST_PAGE_SIZE);
-  }, [filePage, files]);
+    return filteredFiles.slice(startIndex, startIndex + CSV_LIST_PAGE_SIZE);
+  }, [filePage, filteredFiles]);
   const fileStart =
-    files.length === 0 ? 0 : (filePage - 1) * CSV_LIST_PAGE_SIZE + 1;
-  const fileEnd = Math.min(files.length, filePage * CSV_LIST_PAGE_SIZE);
+    filteredFiles.length === 0 ? 0 : (filePage - 1) * CSV_LIST_PAGE_SIZE + 1;
+  const fileEnd = Math.min(
+    filteredFiles.length,
+    filePage * CSV_LIST_PAGE_SIZE,
+  );
 
   useEffect(() => {
     setFilePage((current) => Math.min(current, totalFilePages));
   }, [totalFilePages]);
+
+  useEffect(() => {
+    if (filteredFiles.length === 0) {
+      if (selectedFilename) {
+        setSelectedFilename(null);
+        setCsvRows(null);
+      }
+      return;
+    }
+
+    if (
+      !selectedFilename ||
+      !filteredFiles.some((file) => file.filename === selectedFilename)
+    ) {
+      setSelectedFilename(filteredFiles[0].filename);
+      setSearch("");
+      setPage(1);
+      setCsvRows(null);
+    }
+  }, [filteredFiles, selectedFilename]);
 
   const handleSelectFile = (filename: string) => {
     setSelectedFilename(filename);
@@ -160,6 +225,13 @@ export const CsvExportsPanel = () => {
   const handleSearch = (value: string) => {
     setSearch(value);
     setPage(1);
+  };
+
+  const clearFileFilters = () => {
+    setWorkflowFilter("all");
+    setStatusFilter("all");
+    setDateFilter("all");
+    setFilePage(1);
   };
 
   const handleDeleteFile = async () => {
@@ -211,10 +283,75 @@ export const CsvExportsPanel = () => {
 
       <div className={styles.layout}>
         <aside className={styles.fileList}>
+          {files.length > 0 && (
+            <div className={styles.filters}>
+              <label className={styles.filterControl}>
+                Workflow
+                <select
+                  value={workflowFilter}
+                  onChange={(event) => {
+                    setWorkflowFilter(event.target.value);
+                    setFilePage(1);
+                  }}
+                >
+                  <option value="all">All workflows</option>
+                  {workflowOptions.map((workflow) => (
+                    <option key={workflow} value={workflow}>
+                      {formatJobType(workflow)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.filterControl}>
+                Status
+                <select
+                  value={statusFilter}
+                  onChange={(event) => {
+                    setStatusFilter(event.target.value);
+                    setFilePage(1);
+                  }}
+                >
+                  <option value="all">All statuses</option>
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {formatCsvStatus(status)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.filterControl}>
+                Generated
+                <select
+                  value={dateFilter}
+                  onChange={(event) => {
+                    setDateFilter(event.target.value as CsvDateFilter);
+                    setFilePage(1);
+                  }}
+                >
+                  {DATE_FILTER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {hasActiveFileFilters && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={clearFileFilters}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
           {loadingFiles ? (
             <p className={styles.empty}>Loading CSV exports...</p>
           ) : files.length === 0 ? (
             <p className={styles.empty}>No CSV exports found.</p>
+          ) : filteredFiles.length === 0 ? (
+            <p className={styles.empty}>No CSV exports match these filters.</p>
           ) : (
             <>
               <ul>
@@ -234,6 +371,23 @@ export const CsvExportsPanel = () => {
                     >
                       <strong>{file.filename}</strong>
                       <small>{formatCsvFileDetail(file)}</small>
+                      {(file.jobType || file.jobStatus) && (
+                        <span className={styles.fileBadges}>
+                          {file.jobType && (
+                            <span className={styles.badge}>
+                              {formatJobType(file.jobType)}
+                            </span>
+                          )}
+                          {file.jobStatus && (
+                            <span className={styles.badge}>
+                              {formatCsvStatus(file.jobStatus)}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      {file.createdByUsername && (
+                        <small>Created by {file.createdByUsername}</small>
+                      )}
                     </button>
                     <CsvDownloadButton
                       className={styles.fileDownload}
@@ -254,10 +408,10 @@ export const CsvExportsPanel = () => {
                   </li>
                 ))}
               </ul>
-              {files.length > CSV_LIST_PAGE_SIZE && (
+              {filteredFiles.length > CSV_LIST_PAGE_SIZE && (
                 <div className={styles.listPagination}>
                   <span className={styles.pageCount}>
-                    {fileStart}-{fileEnd} of {files.length}
+                    {fileStart}-{fileEnd} of {filteredFiles.length}
                   </span>
                   <button
                     type="button"
@@ -304,6 +458,18 @@ export const CsvExportsPanel = () => {
                         }`
                       : "Open the file to load rows"}
                   </p>
+                  <div className={styles.viewerMeta}>
+                    <span>{formatCsvFileDetail(selectedFile)}</span>
+                    {selectedFile.jobType && (
+                      <span>{formatJobType(selectedFile.jobType)}</span>
+                    )}
+                    {selectedFile.jobStatus && (
+                      <span>{formatCsvStatus(selectedFile.jobStatus)}</span>
+                    )}
+                    {selectedFile.createdByUsername && (
+                      <span>Created by {selectedFile.createdByUsername}</span>
+                    )}
+                  </div>
                 </div>
                 <label className={styles.searchLabel}>
                   Search by name
@@ -394,15 +560,40 @@ export const CsvExportsPanel = () => {
 };
 
 const formatCsvFileDetail = (file: CsvFileMetadata): string => {
-  const modifiedAt = new Date(file.modifiedAt).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const modifiedAt = formatJobDate(file.modifiedAt);
   const size = formatBytes(file.size);
   const rowDetail =
-    typeof file.rowCount === "number" ? `${file.rowCount} rows` : size;
+    typeof file.rowCount === "number"
+      ? `${file.rowCount} row${file.rowCount === 1 ? "" : "s"}`
+      : size;
 
   return `${rowDetail} · ${modifiedAt}`;
+};
+
+const formatCsvStatus = (status: string): string => {
+  const label = formatJobStatus(status);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+const isPresentString = (value: string | null | undefined): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+
+const matchesDateFilter = (
+  file: CsvFileMetadata,
+  dateFilter: CsvDateFilter,
+): boolean => {
+  if (dateFilter === "all") {
+    return true;
+  }
+
+  const dateValue = file.jobCreatedAt ?? file.modifiedAt;
+  const timestamp = new Date(dateValue).getTime();
+  if (!Number.isFinite(timestamp)) {
+    return false;
+  }
+
+  const days = dateFilter === "7d" ? 7 : 30;
+  return timestamp >= Date.now() - days * DAY_IN_MS;
 };
 
 const formatBytes = (size: number): string => {

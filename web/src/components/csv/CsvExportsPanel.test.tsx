@@ -30,10 +30,14 @@ const csvRows = (search: string, username: string): CsvRowsResponse => ({
   search,
 });
 
-const csvFile = (filename: string): CsvFileMetadata => ({
+const csvFile = (
+  filename: string,
+  metadata: Partial<CsvFileMetadata> = {},
+): CsvFileMetadata => ({
   filename,
   modifiedAt: "2026-05-21T12:00:00.000Z",
   size: 128,
+  ...metadata,
 });
 
 afterEach(() => {
@@ -99,6 +103,53 @@ describe("CsvExportsPanel", () => {
 
     expect(await screen.findByText("export-11.csv")).toBeTruthy();
     expect(screen.getByText("11-11 of 11")).toBeTruthy();
+  });
+
+  it("filters CSV exports by workflow and status", async () => {
+    vi.mocked(fetchCsvFiles).mockResolvedValue([
+      csvFile("zero-users.csv", {
+        jobCreatedAt: "2026-06-20T12:00:00.000Z",
+        jobStatus: "completed",
+        jobType: "zero_scan",
+        rowCount: 2,
+      }),
+      csvFile("inactive-users.csv", {
+        createdByUsername: "Dana",
+        jobCreatedAt: "2026-06-21T12:00:00.000Z",
+        jobStatus: "failed",
+        jobType: "inactive_scan",
+        rowCount: 1,
+      }),
+    ]);
+    vi.mocked(fetchCsvRows).mockImplementation(async ({ filename }) =>
+      filename === "inactive-users.csv"
+        ? csvRows("", "Inactive user")
+        : csvRows("", "Zero user"),
+    );
+
+    render(<CsvExportsPanel />);
+
+    expect(await screen.findByText("Zero user")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Workflow"), {
+      target: { value: "inactive_scan" },
+    });
+
+    expect(await screen.findByText("Inactive user")).toBeTruthy();
+    expect(screen.queryByText("zero-users.csv")).toBeNull();
+    expect(screen.getAllByText("Inactive-member scan").length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.getAllByText("Failed").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Created by Dana").length).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByLabelText("Status"), {
+      target: { value: "completed" },
+    });
+
+    expect(
+      await screen.findByText("No CSV exports match these filters."),
+    ).toBeTruthy();
   });
 
   it("confirms and deletes a CSV export", async () => {
