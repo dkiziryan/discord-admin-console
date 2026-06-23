@@ -6,6 +6,7 @@ import type {
   ArchiveChannelsResponse,
 } from "../../models/types";
 import { requestArchiveChannels } from "../../services/archive/archiveChannels";
+import { ConfirmationModal } from "../shared/ConfirmationModal";
 
 type SelectionMap = Record<string, boolean>;
 
@@ -20,6 +21,8 @@ export const ArchiveChannelsPanel = () => {
   const [processing, setProcessing] = useState(false);
   const [processingAction, setProcessingAction] =
     useState<ChannelAction | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ChannelAction | null>(null);
+  const [confirmValue, setConfirmValue] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<ArchiveChannelsResponse | null>(null);
@@ -83,12 +86,23 @@ export const ArchiveChannelsPanel = () => {
     setSelection(next);
   };
 
+  const handleProcessRequest = (action: ChannelAction) => {
+    if (processing || selectedIds.length === 0) {
+      setErrorMessage("Select at least one channel to process.");
+      return;
+    }
+
+    setConfirmAction(action);
+    setConfirmValue("");
+  };
+
   const handleProcess = async (action: ChannelAction) => {
     if (processing || selectedIds.length === 0) {
       setErrorMessage("Select at least one channel to process.");
       return;
     }
 
+    setConfirmAction(null);
     setProcessing(true);
     setProcessingAction(action);
     setStatusMessage(null);
@@ -216,7 +230,7 @@ export const ArchiveChannelsPanel = () => {
             <button
               type="button"
               className="primary-button"
-              onClick={() => handleProcess("archive")}
+              onClick={() => handleProcessRequest("archive")}
               disabled={processing || selectedIds.length === 0}
             >
               {processing && processingAction === "archive"
@@ -226,7 +240,7 @@ export const ArchiveChannelsPanel = () => {
             <button
               type="button"
               className="danger-button"
-              onClick={() => handleProcess("delete")}
+              onClick={() => handleProcessRequest("delete")}
               disabled={processing || selectedIds.length === 0}
             >
               {processing && processingAction === "delete"
@@ -245,6 +259,50 @@ export const ArchiveChannelsPanel = () => {
         {statusMessage && <p className="status success">{statusMessage}</p>}
         {errorMessage && <p className="status error">{errorMessage}</p>}
       </div>
+      <ConfirmationModal
+        confirmDisabled={confirmValue !== String(selectedIds.length)}
+        confirmLabel={
+          confirmAction === "delete" ? "Delete channels" : "Archive channels"
+        }
+        confirmingLabel={
+          confirmAction === "delete" ? "Deleting..." : "Archiving..."
+        }
+        isConfirming={processing}
+        isOpen={Boolean(confirmAction)}
+        message={
+          <>
+            <p>
+              This will {confirmAction ?? "process"} {selectedIds.length} selected
+              channel{selectedIds.length === 1 ? "" : "s"}. Type{" "}
+              <strong>{selectedIds.length}</strong> to continue.
+            </p>
+            <label>
+              Selected channel count
+              <input
+                aria-label="Selected channel count confirmation"
+                inputMode="numeric"
+                value={confirmValue}
+                onChange={(event) => setConfirmValue(event.target.value)}
+              />
+            </label>
+          </>
+        }
+        onCancel={() => {
+          if (!processing) {
+            setConfirmAction(null);
+          }
+        }}
+        onConfirm={() => {
+          if (confirmAction) {
+            void handleProcess(confirmAction);
+          }
+        }}
+        title={
+          confirmAction === "delete"
+            ? "Confirm channel deletion"
+            : "Confirm channel archive"
+        }
+      />
     </section>
   );
 };

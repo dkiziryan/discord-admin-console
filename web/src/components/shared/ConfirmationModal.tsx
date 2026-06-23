@@ -5,6 +5,7 @@ import styles from "./ConfirmationModal.module.css";
 
 export type ConfirmationModalProps = {
   cancelLabel?: string;
+  confirmDisabled?: boolean;
   confirmLabel?: string;
   confirmingLabel?: string;
   isConfirming?: boolean;
@@ -17,6 +18,7 @@ export type ConfirmationModalProps = {
 
 export const ConfirmationModal = ({
   cancelLabel = "Cancel",
+  confirmDisabled = false,
   confirmLabel = "Confirm",
   confirmingLabel = "Working...",
   isConfirming = false,
@@ -60,7 +62,7 @@ export const ConfirmationModal = ({
       >
         <div className={styles.content}>
           <h2 id={titleId}>{title}</h2>
-          <p>{message}</p>
+          <div className={styles.message}>{message}</div>
         </div>
         <div className={styles.actions}>
           <button
@@ -75,7 +77,7 @@ export const ConfirmationModal = ({
           <button
             type="button"
             className="danger-button"
-            disabled={isConfirming}
+            disabled={isConfirming || confirmDisabled}
             onClick={onConfirm}
           >
             {isConfirming ? confirmingLabel : confirmLabel}

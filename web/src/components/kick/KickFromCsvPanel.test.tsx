@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { KickFromCsvPanel } from "./KickFromCsvPanel";
 import { deleteCsvFile, fetchCsvFiles } from "../../services/csv/csvFiles";
+import { kickFromCsv } from "../../services/csv/kickFromCsv";
 import type { CsvFileMetadata } from "../../models/types";
 
 vi.mock("../../services/csv/csvFiles", () => ({
@@ -58,5 +59,38 @@ describe("KickFromCsvPanel", () => {
     expect(
       screen.getByText("No CSV exports found in the csv/ directory."),
     ).toBeTruthy();
+  });
+
+  it("requires the selected file count before live kicking users", async () => {
+    vi.mocked(fetchCsvFiles).mockResolvedValue([csvFile("users.csv")]);
+    vi.mocked(kickFromCsv).mockResolvedValue({
+      message: "Kick job finished for 1 file(s).",
+      results: [],
+    });
+
+    render(<KickFromCsvPanel />);
+
+    expect(await screen.findByText("users.csv")).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: /users.csv/ }));
+    fireEvent.click(screen.getByLabelText(/Dry run/));
+    fireEvent.click(screen.getByRole("button", { name: "Kick selected users" }));
+
+    const confirmButton = await screen.findByRole("button", {
+      name: "Kick users",
+    });
+    expect(confirmButton).toHaveProperty("disabled", true);
+
+    fireEvent.change(screen.getByLabelText("Selected file count confirmation"), {
+      target: { value: "1" },
+    });
+    expect(confirmButton).toHaveProperty("disabled", false);
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => {
+      expect(kickFromCsv).toHaveBeenCalledWith({
+        filenames: ["users.csv"],
+        dryRun: false,
+      });
+    });
   });
 });

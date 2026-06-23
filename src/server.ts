@@ -127,6 +127,19 @@ const parseMaxMessagesPerChannel = (value: unknown): number | undefined => {
   return Math.min(parsed, MAX_FAST_SCAN_MESSAGES_PER_CHANNEL);
 };
 
+const parseJobHistoryLimit = (value: unknown): number | undefined => {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  return Math.min(parsed, 50);
+};
+
 export const formatElapsedDuration = (startedAtMs: number, finishedAtMs: number): string => {
   const elapsedSeconds = Math.max(0, Math.round((finishedAtMs - startedAtMs) / 1000));
   const minutes = Math.floor(elapsedSeconds / 60);
@@ -444,7 +457,11 @@ export const startHttpServer = (
       return;
     }
 
-    const jobs = await listJobHistory(discordUserId, activeGuildId);
+    const jobs = await listJobHistory(
+      discordUserId,
+      activeGuildId,
+      parseJobHistoryLimit(req.query.limit),
+    );
     res.json({ jobs });
   });
 

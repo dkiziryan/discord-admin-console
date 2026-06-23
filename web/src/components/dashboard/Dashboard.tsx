@@ -9,7 +9,14 @@ import { ZeroMessageScanner } from "../zeroMessages/ZeroMessageScanner";
 import { ActivityHistoryPanel } from "../history/ActivityHistoryPanel";
 import { ServerSettingsPanel } from "../settings/ServerSettingsPanel";
 import { CsvExportsPanel } from "../csv/CsvExportsPanel";
+import type { JobHistoryItem } from "../../models/types";
 import type { AuthUser } from "../../services/auth/auth";
+import { fetchJobHistory } from "../../services/jobs/jobHistory";
+import {
+  formatJobDate,
+  formatJobStatus,
+  formatJobType,
+} from "../../utils/jobHistory";
 
 export type PanelKey =
   | "zero"
@@ -42,6 +49,8 @@ export const Dashboard = ({
   onSelectGuild: (guildId: string) => Promise<void>;
 }) => {
   const [activePanel, setActivePanel] = useState<PanelKey | null>(null);
+  const [recentJobs, setRecentJobs] = useState<JobHistoryItem[] | null>(null);
+  const [activityError, setActivityError] = useState<string | null>(null);
   const guilds = user?.authorizedGuilds ?? [];
 
   const activeGuild = guilds.find(
@@ -53,6 +62,32 @@ export const Dashboard = ({
       setActivePanel(activePanelRequest.panel);
     }
   }, [activePanelRequest]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadRecentJobs = async () => {
+      setActivityError(null);
+      setRecentJobs(null);
+      try {
+        const jobs = await fetchJobHistory(6);
+        if (!cancelled) {
+          setRecentJobs(jobs);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setActivityError((error as Error).message);
+          setRecentJobs([]);
+        }
+      }
+    };
+
+    void loadRecentJobs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user.selectedGuildId]);
 
   const panels = useMemo<Record<PanelKey, DashboardPanel>>(
     () => ({
@@ -166,6 +201,11 @@ export const Dashboard = ({
   return (
     <section>
       {serverContext}
+      <ActivitySummary
+        errorMessage={activityError}
+        jobs={recentJobs}
+        onOpenActivityHistory={() => setActivePanel("activity")}
+      />
       <ul className={styles.ctaList}>
         {Object.entries(panels)
           .filter(([key]) => key !== "activity")
@@ -189,6 +229,68 @@ export const Dashboard = ({
             </li>
           ))}
       </ul>
+    </section>
+  );
+};
+
+const ActivitySummary = ({
+  errorMessage,
+  jobs,
+  onOpenActivityHistory,
+}: {
+  errorMessage: string | null;
+  jobs: JobHistoryItem[] | null;
+  onOpenActivityHistory: () => void;
+}) => {
+  const latestJob = jobs?.[0] ?? null;
+  const runningCount =
+    jobs?.filter((job) => job.status === "queued" || job.status === "running")
+      .length ?? 0;
+  const issueCount =
+    jobs?.filter((job) => job.status === "failed" || job.status === "cancelled")
+      .length ?? 0;
+
+  return (
+    <section className={styles.summarySection} aria-label="Activity summary">
+      <div className={styles.summaryHeader}>
+        <h2>Activity summary</h2>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onOpenActivityHistory}
+        >
+          View history
+        </button>
+      </div>
+      {errorMessage ? (
+        <p className="status error">{errorMessage}</p>
+      ) : (
+        <div className={styles.summaryGrid}>
+          <article className={styles.summaryCard}>
+            <span>Latest action</span>
+            <strong>{latestJob ? formatJobType(latestJob.type) : "None yet"}</strong>
+            <small>
+              {latestJob
+                ? `${formatJobStatus(latestJob.status)} · ${formatJobDate(
+                    latestJob.createdAt,
+                  )}`
+                : jobs === null
+                  ? "Loading recent activity..."
+                  : "No jobs recorded for this server."}
+            </small>
+          </article>
+          <article className={styles.summaryCard}>
+            <span>Running now</span>
+            <strong>{jobs === null ? "..." : runningCount}</strong>
+            <small>Queued or in-progress jobs</small>
+          </article>
+          <article className={styles.summaryCard}>
+            <span>Recent issues</span>
+            <strong>{jobs === null ? "..." : issueCount}</strong>
+            <small>Failed or cancelled jobs</small>
+          </article>
+        </div>
+      )}
     </section>
   );
 };

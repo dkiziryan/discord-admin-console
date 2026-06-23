@@ -30,7 +30,7 @@
 }
 
 .content h2,
-.content p {
+.message {
   margin: 0;
 }
 
@@ -38,9 +38,37 @@
   font-size: 1.1rem;
 }
 
-.content p {
+.message {
   color: var(--discord-text-muted);
   overflow-wrap: anywhere;
+}
+
+.message p {
+  margin: 0;
+}
+
+.message label {
+  color: var(--discord-text);
+  display: flex;
+  flex-direction: column;
+  font-weight: 700;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+}
+
+.message input {
+  background: var(--discord-bg-deep);
+  border: 1px solid var(--discord-border-strong);
+  border-radius: var(--discord-radius-md);
+  color: var(--discord-text);
+  font: inherit;
+  padding: 0.65rem 0.75rem;
+}
+
+.message input:focus {
+  border-color: var(--discord-blurple);
+  box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.28);
+  outline: none;
 }
 
 .actions {

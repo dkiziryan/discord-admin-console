@@ -28,6 +28,8 @@ export const KickFromCsvPanel = () => {
   const [deleteCandidateFilename, setDeleteCandidateFilename] = useState<
     string | null
   >(null);
+  const [confirmKickOpen, setConfirmKickOpen] = useState(false);
+  const [confirmKickValue, setConfirmKickValue] = useState("");
 
   const selectedFilenames = useMemo(
     () =>
@@ -107,12 +109,23 @@ export const KickFromCsvPanel = () => {
     }
   };
 
+  const handleKickRequest = () => {
+    if (!dryRun && selectedFilenames.length > 0) {
+      setConfirmKickValue("");
+      setConfirmKickOpen(true);
+      return;
+    }
+
+    void handleKick();
+  };
+
   const handleKick = async () => {
     if (selectedFilenames.length === 0 || kicking) {
       setErrorMessage("Select at least one CSV file to continue.");
       return;
     }
 
+    setConfirmKickOpen(false);
     setKicking(true);
     setErrorMessage(null);
     setStatusMessage(null);
@@ -266,7 +279,7 @@ export const KickFromCsvPanel = () => {
           <button
             type="button"
             disabled={kicking || selectedFilenames.length === 0}
-            onClick={handleKick}
+            onClick={handleKickRequest}
             className={styles.kickButton}
           >
             {kicking
@@ -350,6 +363,38 @@ export const KickFromCsvPanel = () => {
         }}
         onConfirm={() => void handleDelete()}
         title="Delete CSV export"
+      />
+      <ConfirmationModal
+        confirmDisabled={confirmKickValue !== String(selectedFilenames.length)}
+        confirmLabel="Kick users"
+        confirmingLabel="Kicking..."
+        isConfirming={kicking}
+        isOpen={confirmKickOpen}
+        message={
+          <>
+            <p>
+              This will kick members found in {selectedFilenames.length} selected
+              CSV file{selectedFilenames.length === 1 ? "" : "s"}. Type{" "}
+              <strong>{selectedFilenames.length}</strong> to continue.
+            </p>
+            <label>
+              Selected file count
+              <input
+                aria-label="Selected file count confirmation"
+                inputMode="numeric"
+                value={confirmKickValue}
+                onChange={(event) => setConfirmKickValue(event.target.value)}
+              />
+            </label>
+          </>
+        }
+        onCancel={() => {
+          if (!kicking) {
+            setConfirmKickOpen(false);
+          }
+        }}
+        onConfirm={() => void handleKick()}
+        title="Confirm live kick"
       />
     </section>
   );

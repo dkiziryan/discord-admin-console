@@ -77,6 +77,58 @@
   padding: 0;
 }
 
+.summarySection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.summaryHeader {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.summaryHeader h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.summaryGrid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.summaryCard {
+  background: var(--discord-bg-raised);
+  border: 1px solid var(--discord-border);
+  border-radius: var(--discord-radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 1rem;
+}
+
+.summaryCard span {
+  color: var(--discord-text-subtle);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.summaryCard strong {
+  color: var(--discord-text);
+  overflow-wrap: anywhere;
+}
+
+.summaryCard small {
+  color: var(--discord-text-muted);
+}
+
 .ctaList li {
   width: 100%;
 }
@@ -162,5 +214,9 @@
   .panelHeader {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
   }
 }

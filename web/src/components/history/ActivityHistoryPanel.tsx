@@ -3,6 +3,11 @@ import { useEffect, useState } from "react";
 import styles from "./ActivityHistoryPanel.module.css";
 import type { JobHistoryItem } from "../../models/types";
 import { fetchJobHistory } from "../../services/jobs/jobHistory";
+import {
+  formatJobDate,
+  formatJobStatus,
+  formatJobType,
+} from "../../utils/jobHistory";
 
 export const ActivityHistoryPanel = () => {
   const [history, setHistory] = useState<JobHistoryItem[] | null>(null);
@@ -67,32 +72,4 @@ export const ActivityHistoryPanel = () => {
       )}
     </section>
   );
-};
-
-const formatJobType = (type: string): string => {
-  switch (type) {
-    case "zero_scan":
-      return "Zero-message scan";
-    case "inactive_scan":
-      return "Inactive-member scan";
-    case "kick_csv":
-      return "Kick from CSV";
-    case "cleanup_roles":
-      return "Remove empty roles";
-    case "archive_channels":
-      return "Archive inactive channels";
-    default:
-      return "Dashboard action";
-  }
-};
-
-const formatJobStatus = (status: string): string => {
-  return status.replace(/_/g, " ");
-};
-
-const formatJobDate = (value: string): string => {
-  return new Date(value).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
 };

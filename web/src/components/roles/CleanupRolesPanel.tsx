@@ -3,12 +3,15 @@ import { useMemo, useState } from "react";
 import styles from "./CleanupRolesPanel.module.css";
 import type { CleanupRolesResponse } from "../../models/types";
 import { requestRoleCleanup } from "../../services/roles/cleanupRoles";
+import { ConfirmationModal } from "../shared/ConfirmationModal";
 
 export const CleanupRolesPanel = () => {
   const [previewResult, setPreviewResult] = useState<CleanupRolesResponse | null>(null);
   const [finalResult, setFinalResult] = useState<CleanupRolesResponse | null>(null);
   const [checking, setChecking] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmDeleteValue, setConfirmDeleteValue] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -46,11 +49,21 @@ export const CleanupRolesPanel = () => {
     }
   };
 
+  const handleConfirmRequest = () => {
+    if (!previewResult || previewResult.data.deletableRoleCount === 0) {
+      return;
+    }
+
+    setConfirmDeleteValue("");
+    setConfirmDeleteOpen(true);
+  };
+
   const handleConfirm = async () => {
     if (!previewResult || previewResult.data.deletableRoleCount === 0 || confirming) {
       return;
     }
 
+    setConfirmDeleteOpen(false);
     setConfirming(true);
     setStatusMessage(null);
     setErrorMessage(null);
@@ -124,7 +137,7 @@ export const CleanupRolesPanel = () => {
                 <button
                   type="button"
                   className="primary-button"
-                  onClick={handleConfirm}
+                  onClick={handleConfirmRequest}
                   disabled={confirming}
                 >
                   {confirming ? "Deleting…" : `Delete ${previewResult.data.deletableRoleCount} role(s)`}
@@ -174,6 +187,43 @@ export const CleanupRolesPanel = () => {
         {statusMessage && <p className="status success">{statusMessage}</p>}
         {errorMessage && <p className="status error">{errorMessage}</p>}
       </div>
+      <ConfirmationModal
+        confirmDisabled={
+          confirmDeleteValue !==
+          String(previewResult?.data.deletableRoleCount ?? 0)
+        }
+        confirmLabel="Delete roles"
+        confirmingLabel="Deleting..."
+        isConfirming={confirming}
+        isOpen={confirmDeleteOpen}
+        message={
+          <>
+            <p>
+              This will delete {previewResult?.data.deletableRoleCount ?? 0} empty
+              role
+              {previewResult?.data.deletableRoleCount === 1 ? "" : "s"}. Type{" "}
+              <strong>{previewResult?.data.deletableRoleCount ?? 0}</strong> to
+              continue.
+            </p>
+            <label>
+              Empty role count
+              <input
+                aria-label="Empty role count confirmation"
+                inputMode="numeric"
+                value={confirmDeleteValue}
+                onChange={(event) => setConfirmDeleteValue(event.target.value)}
+              />
+            </label>
+          </>
+        }
+        onCancel={() => {
+          if (!confirming) {
+            setConfirmDeleteOpen(false);
+          }
+        }}
+        onConfirm={() => void handleConfirm()}
+        title="Confirm role deletion"
+      />
     </section>
   );
 };

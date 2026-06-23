@@ -111,6 +111,26 @@ export const registerWorkflowRoutes = (
     }
 
     const dryRun = req.body?.dryRun === false ? false : true;
+    const discordUserId = requireAuthenticatedDiscordUserId(req, res);
+    if (!discordUserId) {
+      return;
+    }
+
+    let jobId: string;
+    try {
+      jobId = await createRunningJob({
+        discordUserId,
+        inputJson: {
+          dryRun,
+          guildId: activeGuildId,
+        },
+        type: "cleanup_roles",
+      });
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+      return;
+    }
+
     isRoleCleanupProcessingByGuild.set(activeGuildId, true);
 
     try {
@@ -125,9 +145,25 @@ export const registerWorkflowRoutes = (
           : `Deleted ${result.deletedRoleCount} empty role(s).`;
       }
 
+      await completeJob(jobId, {
+        resultJson: { data: result, message },
+      }).catch((jobError) => {
+        console.error(
+          `Failed to persist completed role cleanup job ${jobId}: ${(jobError as Error).message}`,
+        );
+      });
       res.json({ message, data: result });
     } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
+      const errorMessage = (error as Error).message;
+      await failJob(jobId, {
+        errorMessage,
+        status: "failed",
+      }).catch((jobError) => {
+        console.error(
+          `Failed to persist failed role cleanup job ${jobId}: ${(jobError as Error).message}`,
+        );
+      });
+      res.status(500).json({ message: errorMessage });
     } finally {
       isRoleCleanupProcessingByGuild.set(activeGuildId, false);
     }
@@ -169,7 +205,30 @@ export const registerWorkflowRoutes = (
     if (!dryRun && channelIds.length === 0) {
       res
         .status(400)
-        .json({ message: "Select at least one channel to archive." });
+        .json({ message: "Select at least one channel to process." });
+      return;
+    }
+
+    const discordUserId = requireAuthenticatedDiscordUserId(req, res);
+    if (!discordUserId) {
+      return;
+    }
+
+    let jobId: string;
+    try {
+      jobId = await createRunningJob({
+        discordUserId,
+        inputJson: {
+          action,
+          days,
+          dryRun,
+          guildId: activeGuildId,
+          ...(channelIds.length > 0 ? { channelIds } : {}),
+        },
+        type: "archive_channels",
+      });
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
       return;
     }
 
@@ -191,13 +250,30 @@ export const registerWorkflowRoutes = (
         : action === "archive"
           ? `Archived ${result.processedCount} channel(s).`
           : `Deleted ${result.processedCount} channel(s).`;
+      const data = { ...result, days, action };
 
+      await completeJob(jobId, {
+        resultJson: { data, message },
+      }).catch((jobError) => {
+        console.error(
+          `Failed to persist completed channel archive job ${jobId}: ${(jobError as Error).message}`,
+        );
+      });
       res.json({
         message,
-        data: { ...result, days, action },
+        data,
       });
     } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
+      const errorMessage = (error as Error).message;
+      await failJob(jobId, {
+        errorMessage,
+        status: "failed",
+      }).catch((jobError) => {
+        console.error(
+          `Failed to persist failed channel archive job ${jobId}: ${(jobError as Error).message}`,
+        );
+      });
+      res.status(500).json({ message: errorMessage });
     } finally {
       isChannelArchiveProcessingByGuild.set(activeGuildId, false);
     }
@@ -708,6 +784,22 @@ export const registerWorkflowRoutes = (
       return;
     }
 
+    let jobId: string;
+    try {
+      jobId = await createRunningJob({
+        discordUserId,
+        inputJson: {
+          dryRun,
+          filenames,
+          guildId: activeGuildId,
+        },
+        type: "kick_csv",
+      });
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+      return;
+    }
+
     isKickProcessingByGuild.set(activeGuildId, true);
     const kickController = createScanCancellationController();
     kickCancellationByGuild.set(activeGuildId, kickController);
@@ -724,12 +816,39 @@ export const registerWorkflowRoutes = (
           : `Kick job finished for ${results.length} file(s).`,
         results,
       };
+      await completeJob(jobId, {
+        resultJson: {
+          message: response.message,
+          results,
+        },
+      }).catch((jobError) => {
+        console.error(
+          `Failed to persist completed kick job ${jobId}: ${(jobError as Error).message}`,
+        );
+      });
       res.json(response);
     } catch (error) {
       if (error instanceof ScanCancelledError) {
+        await failJob(jobId, {
+          errorMessage: error.message,
+          status: "cancelled",
+        }).catch((jobError) => {
+          console.error(
+            `Failed to persist cancelled kick job ${jobId}: ${(jobError as Error).message}`,
+          );
+        });
         res.status(499).json({ message: error.message });
       } else {
-        res.status(500).json({ message: (error as Error).message });
+        const errorMessage = (error as Error).message;
+        await failJob(jobId, {
+          errorMessage,
+          status: "failed",
+        }).catch((jobError) => {
+          console.error(
+            `Failed to persist failed kick job ${jobId}: ${(jobError as Error).message}`,
+          );
+        });
+        res.status(500).json({ message: errorMessage });
       }
     } finally {
       isKickProcessingByGuild.set(activeGuildId, false);
