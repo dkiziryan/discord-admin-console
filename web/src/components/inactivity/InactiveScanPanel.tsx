@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import styles from "./InactiveScanPanel.module.css";
 import type { InactiveScanResponse, InactiveScanStatus } from "../../models/types";
 import { requestInactiveScan } from "../../services/inactivity/inactiveScan";
 import { cancelInactiveScan } from "../../services/inactivity/cancelInactiveScan";
 import { fetchInactiveStatus } from "../../services/inactivity/inactiveStatus";
-import { fetchDefaultInactiveCategories } from "../../services/inactivity/inactiveDefaults";
 import { useScanStatusPolling } from "../../hooks/useScanStatusPolling";
 import { CsvDownloadButton } from "../shared/CsvDownloadButton";
 import { ResultTile } from "../shared/ResultTile";
@@ -15,36 +14,15 @@ const FAST_SCAN_MAX_MESSAGES_PER_CHANNEL = 5_000;
 
 export const InactiveScanPanel = () => {
   const [days, setDays] = useState(180);
-  const [excludedValue, setExcludedValue] = useState("");
   const [countReactionsAsActivity, setCountReactionsAsActivity] = useState(false);
-  const [fastScan, setFastScan] = useState(true);
+  const [fastScan, setFastScan] = useState(false);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<InactiveScanResponse | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [scanStatus, setScanStatus] = useState<InactiveScanStatus | null>(null);
-  const [defaultCategories, setDefaultCategories] = useState<string[]>([]);
   const scanRequestInFlight = useRef(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadDefaults = async () => {
-      try {
-        const categories = await fetchDefaultInactiveCategories();
-        if (!cancelled) {
-          setDefaultCategories(categories);
-        }
-      } catch {
-        // Silently ignore errors; UI can fall back to "no categories".
-      }
-    };
-
-    void loadDefaults();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const elapsedSeconds = useScanStatusPolling({
     loading,
@@ -98,15 +76,9 @@ export const InactiveScanPanel = () => {
     setErrorMessage(null);
     setResult(null);
 
-    const categories = excludedValue
-      .split(/[\n,]/)
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0);
-
     try {
       await requestInactiveScan({
         days,
-        excludedCategories: categories.length > 0 ? categories : undefined,
         countReactionsAsActivity,
         maxMessagesPerChannel: fastScan
           ? FAST_SCAN_MAX_MESSAGES_PER_CHANNEL
@@ -172,26 +144,12 @@ export const InactiveScanPanel = () => {
       <header>
         <div>
           <h2>Scan for inactive members</h2>
-          <p>Find members with no messages in the last N days, excluding selected categories.</p>
+          <p>Find members with no messages in the last N days using server category defaults.</p>
         </div>
       </header>
 
       <div className={styles.form}>
         <div className={styles.presetBar} aria-label="Inactive scan presets">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() =>
-              applyPreset({
-                nextCountReactionsAsActivity: false,
-                nextDays: 180,
-                nextFastScan: true,
-              })
-            }
-            disabled={loading}
-          >
-            180-day fast scan
-          </button>
           <button
             type="button"
             className="secondary-button"
@@ -216,22 +174,6 @@ export const InactiveScanPanel = () => {
             onChange={(event) => setDays(Math.max(1, Number(event.target.value) || 1))}
             disabled={loading}
           />
-        </label>
-        <label>
-          Excluded categories
-          <textarea
-            value={excludedValue}
-            onChange={(event) => setExcludedValue(event.target.value)}
-            placeholder="announcements&#10;random"
-            rows={3}
-            disabled={loading}
-          />
-          {defaultCategories.length > 0 && (
-            <small>
-              Defaults always exclude{" "}
-              {defaultCategories.map((category) => `“${category}”`).join(", ")}
-            </small>
-          )}
         </label>
         <label className={styles.checkboxRow}>
           <input

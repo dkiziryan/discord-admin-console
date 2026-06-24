@@ -81,6 +81,18 @@
   margin: 0;
 }
 
+.sectionHeader {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.sectionHeader button {
+  min-height: 32px;
+  padding: 0.35rem 0.6rem;
+}
+
 .channelColumn ul {
   display: flex;
   flex-direction: column;
@@ -100,4 +112,18 @@
 .empty {
   color: var(--discord-text-subtle);
   margin: 0;
+}
+
+.pagination {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.pageCount {
+  color: var(--discord-text-muted);
+  font-weight: 700;
 }

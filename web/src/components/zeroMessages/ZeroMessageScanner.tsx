@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
 import styles from "./ZeroMessageScanner.module.css";
@@ -6,10 +6,7 @@ import type { ScanResponse, ScanStatus } from "../../models/types";
 import { cancelScan } from "../../services/zeroMessages/cancelScan";
 import { fetchScanStatus } from "../../services/zeroMessages/scanStatus";
 import { requestZeroMessageScan } from "../../services/zeroMessages/zeroMessages";
-import { fetchDefaultInactiveCategories } from "../../services/inactivity/inactiveDefaults";
-import { fetchDefaultChannels } from "../../services/zeroMessages/defaultChannels";
 import { useScanStatusPolling } from "../../hooks/useScanStatusPolling";
-import { parseChannelInput } from "../../utils/channel";
 import { ProgressIndicator } from "../shared/ProgressIndicator";
 import { ZeroScanResults } from "./ZeroScanResults";
 
@@ -17,7 +14,6 @@ const FAST_SCAN_MAX_MESSAGES_PER_CHANNEL = 5_000;
 const SCAN_START_GRACE_PERIOD_MS = 15_000;
 
 export const ZeroMessageScanner = () => {
-  const [channelInput, setChannelInput] = useState("");
   const [dryRun, setDryRun] = useState(false);
   const [countReactionsAsActivity, setCountReactionsAsActivity] = useState(false);
   const [fastScan, setFastScan] = useState(false);
@@ -28,14 +24,8 @@ export const ZeroMessageScanner = () => {
   const [result, setResult] = useState<ScanResponse | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [cancelling, setCancelling] = useState(false);
-  const [defaultChannels, setDefaultChannels] = useState<string[]>([]);
-  const [defaultCategories, setDefaultCategories] = useState<string[]>([]);
   const scanRequestInFlight = useRef(false);
   const scanStartedAt = useRef<number | null>(null);
-
-  useEffect(() => {
-    void loadDefaults();
-  }, []);
 
   const elapsedSeconds = useScanStatusPolling({
     loading,
@@ -100,33 +90,6 @@ export const ZeroMessageScanner = () => {
     return lines;
   }, [result]);
 
-  const loadDefaults = async () => {
-    try {
-      const [channels, categories] = await Promise.all([
-        fetchDefaultChannels(),
-        fetchDefaultInactiveCategories(),
-      ]);
-      setDefaultChannels(channels);
-      setDefaultCategories(categories);
-    } catch (error) {
-      setErrorMessage((error as Error).message);
-    }
-  };
-
-  const applyServerDefaultsPreset = () => {
-    setChannelInput(defaultChannels.join("\n"));
-    setDryRun(false);
-    setCountReactionsAsActivity(false);
-    setFastScan(false);
-  };
-
-  const applyFastAllChannelsPreset = () => {
-    setChannelInput("");
-    setDryRun(false);
-    setCountReactionsAsActivity(false);
-    setFastScan(true);
-  };
-
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatusMessage(null);
@@ -164,13 +127,10 @@ export const ZeroMessageScanner = () => {
   };
 
   const runScan = async () => {
-    const userChannels = parseChannelInput(channelInput);
-
     try {
       await requestZeroMessageScan({
         countReactionsAsActivity,
         dryRun,
-        ...(userChannels.length > 0 ? { channelNames: userChannels } : {}),
         ...(fastScan
           ? { maxMessagesPerChannel: FAST_SCAN_MAX_MESSAGES_PER_CHANNEL }
           : {}),
@@ -197,39 +157,6 @@ export const ZeroMessageScanner = () => {
       {activeView === "scan" ? (
         <>
           <form onSubmit={handleSubmit} className={styles.controlPanel}>
-            <div className={styles.presetBar} aria-label="Zero-message presets">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={applyServerDefaultsPreset}
-                disabled={loading}
-              >
-                Server defaults
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={applyFastAllChannelsPreset}
-                disabled={loading}
-              >
-                Fast all-channel scan
-              </button>
-            </div>
-            <label htmlFor="channelInput">Target channels</label>
-            <textarea
-              id="channelInput"
-              placeholder="general&#10;in-between"
-              value={channelInput}
-              onChange={(event) => setChannelInput(event.target.value)}
-              rows={6}
-              disabled={loading}
-            />
-            {defaultCategories.length > 0 && (
-              <small>
-                Default excluded categories:{" "}
-                {defaultCategories.map((category) => `“${category}”`).join(", ")}
-              </small>
-            )}
             <label className={styles.dryRunToggle}>
               <input
                 type="checkbox"

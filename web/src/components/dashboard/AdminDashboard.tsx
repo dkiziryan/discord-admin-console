@@ -53,7 +53,7 @@ export const AdminDashboardView = ({
       <header className={styles.hero}>
         <div className={styles.heroContent}>
           <p className={styles.heroEyebrow}>Welcome to</p>
-          <h1>Discord Admin Console</h1>
+          <h1>Server Admin Console</h1>
           <p>
             Moderation and server management dashboard for Discord admins. Use
             guided workflows to review inactive members, manage roles, archive

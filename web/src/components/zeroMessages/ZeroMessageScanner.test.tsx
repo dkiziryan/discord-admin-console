@@ -1,21 +1,13 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ZeroMessageScanner } from "./ZeroMessageScanner";
 import { fetchScanStatus } from "../../services/zeroMessages/scanStatus";
 import { requestZeroMessageScan } from "../../services/zeroMessages/zeroMessages";
-import { fetchDefaultInactiveCategories } from "../../services/inactivity/inactiveDefaults";
-import { fetchDefaultChannels } from "../../services/zeroMessages/defaultChannels";
 import type { ScanResponse, ScanStatus } from "../../models/types";
 
-vi.mock("../../services/zeroMessages/defaultChannels", () => ({
-  fetchDefaultChannels: vi.fn(),
-}));
-vi.mock("../../services/inactivity/inactiveDefaults", () => ({
-  fetchDefaultInactiveCategories: vi.fn(),
-}));
 vi.mock("../../services/zeroMessages/scanStatus", () => ({
   fetchScanStatus: vi.fn(),
 }));
@@ -76,27 +68,15 @@ afterEach(() => {
 });
 
 describe("ZeroMessageScanner", () => {
-  it("submits a blank all-channel scan and renders excluded defaults", async () => {
-    vi.mocked(fetchDefaultChannels).mockResolvedValue([]);
-    vi.mocked(fetchDefaultInactiveCategories).mockResolvedValue([
-      "Affiliate Vendors",
-      "Private",
-    ]);
+  it("submits a server-default scan without per-run target channel controls", async () => {
     vi.mocked(requestZeroMessageScan).mockResolvedValue();
     vi.mocked(fetchScanStatus).mockResolvedValue(completedStatus);
 
     render(<ZeroMessageScanner />);
 
-    await waitFor(() => {
-      expect(screen.getByLabelText("Target channels")).toHaveProperty(
-        "value",
-        "",
-      );
-    });
+    expect(screen.queryByLabelText("Target channels")).toBeNull();
     expect(screen.queryByText(/Target channel names/)).toBeNull();
-    expect(screen.getByText(/Default excluded categories:/)).toBeTruthy();
-    expect(screen.getByText(/Affiliate Vendors/)).toBeTruthy();
-    expect(screen.getByText(/Private/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Fast scan" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Scan for zero-message users" }));
 
@@ -110,8 +90,6 @@ describe("ZeroMessageScanner", () => {
   });
 
   it("renders coverage warnings from approximate scans", async () => {
-    vi.mocked(fetchDefaultChannels).mockResolvedValue([]);
-    vi.mocked(fetchDefaultInactiveCategories).mockResolvedValue([]);
     vi.mocked(requestZeroMessageScan).mockResolvedValue();
     vi.mocked(fetchScanStatus).mockResolvedValue({
       ...completedStatus,
@@ -134,8 +112,6 @@ describe("ZeroMessageScanner", () => {
   });
 
   it("warns that fast scan is approximate", async () => {
-    vi.mocked(fetchDefaultChannels).mockResolvedValue([]);
-    vi.mocked(fetchDefaultInactiveCategories).mockResolvedValue([]);
     vi.mocked(fetchScanStatus).mockResolvedValue(null);
 
     render(<ZeroMessageScanner />);
@@ -143,19 +119,5 @@ describe("ZeroMessageScanner", () => {
     fireEvent.click(screen.getByLabelText(/Fast scan/));
 
     expect(screen.getByText(/Fast scan can miss older posts/)).toBeTruthy();
-  });
-
-  it("applies saved server default channels as a preset", async () => {
-    vi.mocked(fetchDefaultChannels).mockResolvedValue(["general", "support"]);
-    vi.mocked(fetchDefaultInactiveCategories).mockResolvedValue([]);
-
-    render(<ZeroMessageScanner />);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Server defaults" }));
-
-    expect(screen.getByLabelText("Target channels")).toHaveProperty(
-      "value",
-      "general\nsupport",
-    );
   });
 });

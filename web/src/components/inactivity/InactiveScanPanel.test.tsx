@@ -4,14 +4,10 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { InactiveScanPanel } from "./InactiveScanPanel";
-import { fetchDefaultInactiveCategories } from "../../services/inactivity/inactiveDefaults";
 import { fetchInactiveStatus } from "../../services/inactivity/inactiveStatus";
 import { requestInactiveScan } from "../../services/inactivity/inactiveScan";
 import type { InactiveScanResponse, InactiveScanStatus } from "../../models/types";
 
-vi.mock("../../services/inactivity/inactiveDefaults", () => ({
-  fetchDefaultInactiveCategories: vi.fn(),
-}));
 vi.mock("../../services/inactivity/inactiveStatus", () => ({
   fetchInactiveStatus: vi.fn(),
 }));
@@ -59,29 +55,33 @@ afterEach(() => {
 });
 
 describe("InactiveScanPanel", () => {
-  it("submits the fast scan request and renders polled results", async () => {
-    vi.mocked(fetchDefaultInactiveCategories).mockResolvedValue(["announcements"]);
+  it("submits a full scan by default and renders polled results", async () => {
     vi.mocked(requestInactiveScan).mockResolvedValue();
     vi.mocked(fetchInactiveStatus).mockResolvedValue(completedStatus);
 
     render(<InactiveScanPanel />);
 
-    expect(screen.getByLabelText(/Excluded categories/)).toBeTruthy();
+    expect(screen.queryByLabelText(/Excluded categories/)).toBeNull();
     expect(screen.queryByText(/Extra categories to exclude/)).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "180-day fast scan" }),
+    ).toBeNull();
+    expect(screen.getByLabelText(/Fast scan/)).toHaveProperty(
+      "checked",
+      false,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Scan inactive members" }));
 
     expect(await screen.findByText("Alice")).toBeTruthy();
     expect(requestInactiveScan).toHaveBeenCalledWith({
       days: 180,
-      excludedCategories: undefined,
       countReactionsAsActivity: false,
-      maxMessagesPerChannel: 5000,
+      maxMessagesPerChannel: undefined,
     });
   });
 
   it("applies the 365-day full scan preset", async () => {
-    vi.mocked(fetchDefaultInactiveCategories).mockResolvedValue([]);
     vi.mocked(fetchInactiveStatus).mockResolvedValue(null);
 
     render(<InactiveScanPanel />);
@@ -91,7 +91,6 @@ describe("InactiveScanPanel", () => {
 
     expect(requestInactiveScan).toHaveBeenCalledWith({
       days: 365,
-      excludedCategories: undefined,
       countReactionsAsActivity: false,
       maxMessagesPerChannel: undefined,
     });

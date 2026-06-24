@@ -13,6 +13,7 @@ import { kickMembersFromCsv } from "../services/csv/kickFromCsv";
 import { ScanCancelledError } from "../services/errors";
 import {
   collectInactiveExcludedCategories,
+  readGuildSettings,
 } from "../services/guildSettings";
 import {
   mapInactiveResultToResponse,
@@ -330,7 +331,11 @@ export const registerWorkflowRoutes = (
       }
     }
 
-    const targetChannelNames = requestChannels;
+    const guildSettings = await readGuildSettings(activeGuildId);
+    const targetChannelNames = resolveZeroMessageTargetChannels(
+      requestChannels,
+      guildSettings.defaultTargetChannels,
+    );
     const excludedCategories = Array.from(
       new Set(
         (
@@ -855,4 +860,11 @@ export const registerWorkflowRoutes = (
       kickCancellationByGuild.delete(activeGuildId);
     }
   });
+};
+
+export const resolveZeroMessageTargetChannels = (
+  requestChannels: string[],
+  defaultTargetChannels: string[],
+): string[] => {
+  return requestChannels.length > 0 ? requestChannels : defaultTargetChannels;
 };
