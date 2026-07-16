@@ -132,12 +132,16 @@ export const resolveTargetChannels = async (
   guild: Guild,
   channelNames: string[],
   excludedCategories: Set<string>,
-  onCheckCancelled?: () => void,
+  options: {
+    includeArchivedThreads?: boolean;
+    onCheckCancelled?: () => void;
+  } = {},
 ): Promise<{
   channels: GuildTextBasedChannel[];
   matchedChannelCount: number;
   skippedChannels: string[];
 }> => {
+  const { includeArchivedThreads = false, onCheckCancelled } = options;
   const normalizedTargets = new Set(
     channelNames.map((name) => name.trim().toLowerCase()).filter(Boolean),
   );
@@ -196,11 +200,13 @@ export const resolveTargetChannels = async (
       }
     });
 
-    const archivedThreads = await fetchArchivedPublicThreads(
-      channel,
-      onCheckCancelled,
-    ).catch(() => []);
-    archivedThreads.forEach(considerChannel);
+    if (includeArchivedThreads) {
+      const archivedThreads = await fetchArchivedPublicThreads(
+        channel,
+        onCheckCancelled,
+      ).catch(() => []);
+      archivedThreads.forEach(considerChannel);
+    }
   };
 
   const activeThreads = await guild.channels.fetchActiveThreads().catch(() => null);

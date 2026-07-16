@@ -63,6 +63,7 @@ export const scanZeroMessageUsers = async (
     excludedCategories = [],
     dryRun = false,
     countReactionsAsActivity = false,
+    includeArchivedThreads = false,
     maxMessagesPerChannel,
     ignoredUserIds: providedIgnoredUserIds,
     progressCallbacks,
@@ -164,7 +165,7 @@ export const scanZeroMessageUsers = async (
     guild,
     targetChannelNames,
     buildExcludedCategorySet(excludedCategories),
-    throwIfCancelled,
+    { includeArchivedThreads, onCheckCancelled: throwIfCancelled },
   );
 
   const hasExplicitTargetChannels = targetChannelNames.some(

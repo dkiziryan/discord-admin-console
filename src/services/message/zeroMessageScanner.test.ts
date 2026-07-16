@@ -414,6 +414,111 @@ test("scanZeroMessageUsers counts active public thread posts as messages", async
   );
 });
 
+test("scanZeroMessageUsers ignores archived public thread posts by default", async () => {
+  const marketplaceCategory = createCategory("Marketplace");
+  const parentChannel = createTextChannel({
+    id: "channel-bst",
+    name: "carol-christian-poell-bst",
+    parent: marketplaceCategory,
+    messages: [],
+  });
+  const thread = createPublicThread({
+    id: "thread-archived",
+    name: "archived-wtb",
+    parent: parentChannel,
+    messages: [
+      {
+        id: "message-archived-thread",
+        createdTimestamp: new Date("2026-05-17T20:15:08.725Z").getTime(),
+        author: { bot: false, id: "member-archived-thread" },
+      },
+    ],
+  });
+  parentChannel.threads.fetchArchived = async () => ({
+    threads: new Map([[thread.id, thread]]),
+    hasMore: false,
+  });
+  const guild = createGuild({
+    members: [
+      {
+        id: "member-archived-thread",
+        user: { bot: false, tag: "archived#1234" },
+        displayName: "Archived Thread User",
+      },
+    ],
+    channels: [parentChannel],
+  });
+
+  const result = await scanZeroMessageUsers(createClient(guild) as never, {
+    guildId: "123456789012345678",
+    discordUserId: "234567890123456789",
+    targetChannelNames: [],
+    excludedCategories: ["Affiliate Vendors", "Private"],
+    ignoredUserIds: new Set(),
+  });
+
+  assert.deepEqual(
+    result.zeroMessageUsers.map((member) => member.id),
+    ["member-archived-thread"],
+  );
+  assert.deepEqual(result.processedChannels, ["carol-christian-poell-bst"]);
+});
+
+test("scanZeroMessageUsers counts archived public thread posts when enabled", async () => {
+  const marketplaceCategory = createCategory("Marketplace");
+  const parentChannel = createTextChannel({
+    id: "channel-bst",
+    name: "carol-christian-poell-bst",
+    parent: marketplaceCategory,
+    messages: [],
+  });
+  const thread = createPublicThread({
+    id: "thread-archived",
+    name: "archived-wtb",
+    parent: parentChannel,
+    messages: [
+      {
+        id: "message-archived-thread",
+        createdTimestamp: new Date("2026-05-17T20:15:08.725Z").getTime(),
+        author: { bot: false, id: "member-archived-thread" },
+      },
+    ],
+  });
+  parentChannel.threads.fetchArchived = async () => ({
+    threads: new Map([[thread.id, thread]]),
+    hasMore: false,
+  });
+  const guild = createGuild({
+    members: [
+      {
+        id: "member-archived-thread",
+        user: { bot: false, tag: "archived#1234" },
+        displayName: "Archived Thread User",
+      },
+    ],
+    channels: [parentChannel],
+  });
+
+  const result = await scanZeroMessageUsers(createClient(guild) as never, {
+    guildId: "123456789012345678",
+    discordUserId: "234567890123456789",
+    targetChannelNames: [],
+    excludedCategories: ["Affiliate Vendors", "Private"],
+    ignoredUserIds: new Set(),
+    includeArchivedThreads: true,
+  });
+
+  assert.equal(result.zeroMessageUsers.length, 0);
+  assert.deepEqual(result.processedChannels, [
+    "carol-christian-poell-bst",
+    "archived-wtb",
+  ]);
+  assert.equal(
+    result.channelCoverage[1]?.channelName,
+    "thread carol-christian-poell-bst / archived-wtb",
+  );
+});
+
 test("scanZeroMessageUsers excludes public threads under excluded categories", async () => {
   const privateCategory = createCategory("Private");
   const parentChannel = createTextChannel({

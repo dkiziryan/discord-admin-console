@@ -34,6 +34,7 @@ export type ZeroMessagesRequest = {
   excludedCategories?: string[];
   dryRun?: boolean;
   countReactionsAsActivity?: boolean;
+  includeArchivedThreads?: boolean;
   maxMessagesPerChannel?: number;
 };
 

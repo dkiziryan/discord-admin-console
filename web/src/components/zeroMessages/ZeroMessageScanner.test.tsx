@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ZeroMessageScanner } from "./ZeroMessageScanner";
@@ -86,6 +86,25 @@ describe("ZeroMessageScanner", () => {
     expect(requestZeroMessageScan).toHaveBeenCalledWith({
       countReactionsAsActivity: false,
       dryRun: false,
+      includeArchivedThreads: false,
+    });
+  });
+
+  it("sends includeArchivedThreads when archived thread scanning is enabled", async () => {
+    vi.mocked(requestZeroMessageScan).mockResolvedValue();
+    vi.mocked(fetchScanStatus).mockResolvedValue(null);
+
+    render(<ZeroMessageScanner />);
+
+    fireEvent.click(screen.getByLabelText(/Include archived threads/));
+    fireEvent.click(screen.getByRole("button", { name: "Scan for zero-message users" }));
+
+    await waitFor(() => {
+      expect(requestZeroMessageScan).toHaveBeenCalledWith({
+        countReactionsAsActivity: false,
+        dryRun: false,
+        includeArchivedThreads: true,
+      });
     });
   });
 

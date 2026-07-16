@@ -299,6 +299,7 @@ export const registerWorkflowRoutes = (
     );
     const dryRun = Boolean(req.body?.dryRun);
     const countReactionsAsActivity = Boolean(req.body?.countReactionsAsActivity);
+    const includeArchivedThreads = Boolean(req.body?.includeArchivedThreads);
     const maxMessagesPerChannel = parseMaxMessagesPerChannel(
       req.body?.maxMessagesPerChannel,
     );
@@ -391,6 +392,7 @@ export const registerWorkflowRoutes = (
         inputJson: {
           dryRun,
           countReactionsAsActivity,
+          includeArchivedThreads,
           ...(maxMessagesPerChannel ? { maxMessagesPerChannel } : {}),
           excludedCategories,
           guildId: activeGuildId,
@@ -445,6 +447,7 @@ export const registerWorkflowRoutes = (
         excludedCategories,
         dryRun,
         countReactionsAsActivity,
+        includeArchivedThreads,
         maxMessagesPerChannel,
         isCancelled: cancellationController.isCancelled,
         progressCallbacks: {

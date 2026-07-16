@@ -25,6 +25,7 @@ export type ScanZeroMessagesOptions = {
   excludedCategories?: string[];
   dryRun?: boolean;
   countReactionsAsActivity?: boolean;
+  includeArchivedThreads?: boolean;
   maxMessagesPerChannel?: number;
   ignoredUserIds?: Set<string>;
   isCancelled?: () => boolean;

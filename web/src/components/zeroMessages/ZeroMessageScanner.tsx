@@ -16,6 +16,7 @@ const SCAN_START_GRACE_PERIOD_MS = 15_000;
 export const ZeroMessageScanner = () => {
   const [dryRun, setDryRun] = useState(false);
   const [countReactionsAsActivity, setCountReactionsAsActivity] = useState(false);
+  const [includeArchivedThreads, setIncludeArchivedThreads] = useState(false);
   const [fastScan, setFastScan] = useState(false);
   const [activeView, setActiveView] = useState<"scan" | "results">("scan");
   const [loading, setLoading] = useState(false);
@@ -131,6 +132,7 @@ export const ZeroMessageScanner = () => {
       await requestZeroMessageScan({
         countReactionsAsActivity,
         dryRun,
+        includeArchivedThreads,
         ...(fastScan
           ? { maxMessagesPerChannel: FAST_SCAN_MAX_MESSAGES_PER_CHANNEL }
           : {}),
@@ -174,6 +176,15 @@ export const ZeroMessageScanner = () => {
                 disabled={loading}
               />
               <span>Count reactions as activity</span>
+            </label>
+            <label className={styles.dryRunToggle}>
+              <input
+                type="checkbox"
+                checked={includeArchivedThreads}
+                onChange={(event) => setIncludeArchivedThreads(event.target.checked)}
+                disabled={loading}
+              />
+              <span>Include archived threads</span>
             </label>
             <label className={styles.dryRunToggle}>
               <input
