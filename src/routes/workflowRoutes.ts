@@ -331,24 +331,58 @@ export const registerWorkflowRoutes = (
       }
     }
 
-    const guildSettings = await readGuildSettings(activeGuildId);
-    const targetChannelNames = resolveZeroMessageTargetChannels(
-      requestChannels,
-      guildSettings.defaultTargetChannels,
-    );
-    const excludedCategories = Array.from(
-      new Set(
-        (
-          await collectInactiveExcludedCategories(
-            activeGuildId,
-            requestExcludedCategories,
-          )
-        )
-          .map((category) => category.trim())
-          .filter((category) => category.length > 0),
-      ),
-    );
     const scanMode = maxMessagesPerChannel === undefined ? "exact" : "fast";
+    const startedAt = new Date().toISOString();
+
+    isProcessingByGuild.set(activeGuildId, true);
+    updateScanStatus(activeGuildId, {
+      inProgress: true,
+      currentChannel: null,
+      currentIndex: 0,
+      totalChannels: 0,
+      processedChannels: 0,
+      processedMembers: 0,
+      totalMembers: 0,
+      startedAt,
+      finishedAt: null,
+      lastMessage: "Preparing scan…",
+      errorMessage: null,
+      result: null,
+    });
+
+    let targetChannelNames: string[];
+    let excludedCategories: string[];
+    try {
+      const guildSettings = await readGuildSettings(activeGuildId);
+      targetChannelNames = resolveZeroMessageTargetChannels(
+        requestChannels,
+        guildSettings.defaultTargetChannels,
+      );
+      excludedCategories = Array.from(
+        new Set(
+          (
+            await collectInactiveExcludedCategories(
+              activeGuildId,
+              requestExcludedCategories,
+            )
+          )
+            .map((category) => category.trim())
+            .filter((category) => category.length > 0),
+        ),
+      );
+    } catch (error) {
+      const errorMessage = (error as Error).message;
+      updateScanStatus(activeGuildId, {
+        inProgress: false,
+        finishedAt: new Date().toISOString(),
+        errorMessage,
+        lastMessage: "Scan failed.",
+        result: null,
+      });
+      isProcessingByGuild.set(activeGuildId, false);
+      res.status(500).json({ message: errorMessage });
+      return;
+    }
 
     let jobId: string;
     try {
@@ -366,7 +400,16 @@ export const registerWorkflowRoutes = (
         type: "zero_scan",
       });
     } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
+      const errorMessage = (error as Error).message;
+      updateScanStatus(activeGuildId, {
+        inProgress: false,
+        finishedAt: new Date().toISOString(),
+        errorMessage,
+        lastMessage: "Scan failed.",
+        result: null,
+      });
+      isProcessingByGuild.set(activeGuildId, false);
+      res.status(500).json({ message: errorMessage });
       return;
     }
 
@@ -379,14 +422,13 @@ export const registerWorkflowRoutes = (
       processedChannels: 0,
       processedMembers: 0,
       totalMembers: 0,
-      startedAt: new Date().toISOString(),
+      startedAt,
       finishedAt: null,
       lastMessage: "Preparing scan…",
       errorMessage: null,
       result: null,
     });
 
-    isProcessingByGuild.set(activeGuildId, true);
     const cancellationController = createScanCancellationController();
     activeCancellationByGuild.set(activeGuildId, cancellationController);
     res.status(202).json({

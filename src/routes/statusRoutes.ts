@@ -45,6 +45,7 @@ export const registerStatusRoutes = (
       return;
     }
 
+    res.set("Cache-Control", "no-store");
     res.json({ ...getScanStatus(activeGuildId) });
   });
 
