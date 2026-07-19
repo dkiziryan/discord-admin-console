@@ -1,4 +1,46 @@
 import type { GuildMember } from "discord.js";
+import type {
+  ChannelScanCoverage,
+  ZeroMessageScanMode,
+} from "../shared/apiTypes";
+
+export type {
+  ApiError,
+  ArchiveChannelAction,
+  ArchiveChannelsRequest,
+  ArchiveChannelsResponse,
+  ArchivedChannelSummary,
+  ArchiveChannelsResult,
+  ChannelScanCoverage,
+  CleanupRolesRequest,
+  CleanupRolesResponse,
+  CleanupRolesResult,
+  CsvFileListResponse,
+  CsvFileMetadata,
+  CsvRow,
+  CsvRowsResponse,
+  DefaultChannelsResponse,
+  DefaultInactiveCategoriesResponse,
+  GuildWorkflowSettings,
+  GuildWorkflowSettingsResponse,
+  IgnoredUser,
+  IgnoredUsersResponse,
+  ImportIgnoredUsersResponse,
+  InactiveScanResponse,
+  InactiveScanStatus,
+  JobHistoryItem,
+  JobHistoryResponse,
+  KickFromCsvFileResult,
+  KickFromCsvRequest,
+  KickFromCsvResponse,
+  LocalDevSettings,
+  ScanResponse,
+  ScanStatus,
+  ScanZeroMessagesResponse,
+  UpdateGuildWorkflowSettingsRequest,
+  ZeroMessageScanMode,
+  ZeroMessagesRequest,
+} from "../shared/apiTypes";
 
 export type ScanProgressCallbacks = {
   onChannelsResolved?(total: number): void;
@@ -6,16 +48,6 @@ export type ScanProgressCallbacks = {
   onChannelComplete?(channelName: string, index: number, total: number): void;
   onMemberProgress?(processedMembers: number, totalMembers: number): void;
   onMessageProgress?(totalMessages: number): void;
-};
-
-export type ZeroMessageScanMode = "exact" | "fast";
-
-export type ChannelScanCoverage = {
-  channelName: string;
-  messagesScanned: number;
-  newestMessageAt: string | null;
-  oldestMessageAt: string | null;
-  reachedMessageLimit: boolean;
 };
 
 export type ScanZeroMessagesOptions = {
@@ -55,42 +87,6 @@ export type StartServerOptions = {
   guildId: string;
 };
 
-export type ScanStatus = {
-  inProgress: boolean;
-  currentChannel: string | null;
-  currentIndex: number;
-  totalChannels: number;
-  processedChannels: number;
-  processedMembers: number;
-  totalMembers: number;
-  startedAt: string | null;
-  finishedAt: string | null;
-  lastMessage: string | null;
-  errorMessage: string | null;
-  result: ScanZeroMessagesResponse | null;
-};
-
-export type ScanZeroMessagesResponse = {
-  message: string;
-  channels: string[];
-  data: {
-    guildName: string;
-    csvPath: string;
-    zeroMessageCount: number;
-    totalMembersChecked: number;
-    totalMessagesScanned: number;
-    skippedChannels: string[];
-    processedChannels: string[];
-    previewNames: string[];
-    moreCount: number;
-    skippedPreview: string;
-    scanMode: ZeroMessageScanMode;
-    excludedCategories: string[];
-    channelCoverage: ChannelScanCoverage[];
-    coverageWarning: string | null;
-  };
-};
-
 export type ScanInactiveMembersOptions = {
   guildId: string;
   discordUserId: string;
@@ -120,65 +116,9 @@ export type ScanInactiveMembersResult = {
   skippedPreview: string;
 };
 
-export type CsvFileMetadata = {
-  filename: string;
-  size: number;
-  modifiedAt: string;
-  rowCount?: number;
-  jobId?: string | null;
-  jobType?: string | null;
-  jobStatus?: string | null;
-  jobCreatedAt?: string | null;
-  jobFinishedAt?: string | null;
-  createdByUsername?: string | null;
-};
-
-export type CsvRow = Record<string, string>;
-
-export type CsvRowsResponse = {
-  filename: string;
-  columns: string[];
-  rows: CsvRow[];
-  page: number;
-  pageSize: number;
-  totalRows: number;
-  totalPages: number;
-  search: string;
-};
-
-export type KickFromCsvFileResult = {
-  filename: string;
-  dryRun: boolean;
-  totalRows: number;
-  matchedUsers: number;
-  attemptedKicks: number;
-  successfulKicks: number;
-  failures: string[];
-};
-
-export type KickFromCsvRequest = {
-  filenames: string[];
-  dryRun?: boolean;
-};
-
-export type KickFromCsvResponse = {
-  message: string;
-  results: KickFromCsvFileResult[];
-};
-
 export type CleanupRolesOptions = {
   guildId: string;
   dryRun?: boolean;
-};
-
-export type CleanupRolesResult = {
-  guildName: string;
-  totalRoles: number;
-  deletableRoleCount: number;
-  deletedRoleCount: number;
-  previewNames: string[];
-  moreCount: number;
-  failures: string[];
 };
 
 export type ArchiveChannelsOptions = {
@@ -188,102 +128,4 @@ export type ArchiveChannelsOptions = {
   dryRun?: boolean;
   action?: "archive" | "delete";
   excludedCategories?: string[];
-};
-
-export type ArchivedChannelSummary = {
-  id: string;
-  name: string;
-  lastMessageAt: string | null;
-};
-
-export type ArchiveChannelsResult = {
-  inactiveChannels: ArchivedChannelSummary[];
-  processedCount: number;
-  archiveCategoryId: string | null;
-  action: "archive" | "delete";
-  failures: string[];
-};
-
-export type InactiveScanResponse = {
-  message: string;
-  data: {
-    guildName: string;
-    csvPath: string;
-    cutoffIso: string;
-    inactiveCount: number;
-    totalMembersChecked: number;
-    totalMessagesScanned: number;
-    skippedChannels: string[];
-    processedChannels: string[];
-    previewNames: string[];
-    moreCount: number;
-    skippedPreview: string;
-  };
-};
-
-export type InactiveScanStatus = {
-  inProgress: boolean;
-  currentChannel: string | null;
-  currentIndex: number;
-  totalChannels: number;
-  processedChannels: number;
-  totalMessages: number;
-  startedAt: string | null;
-  finishedAt: string | null;
-  lastMessage: string | null;
-  errorMessage: string | null;
-  result: InactiveScanResponse | null;
-};
-export type CsvFileListResponse = {
-  files: CsvFileMetadata[];
-};
-
-export type JobHistoryItem = {
-  id: string;
-  type: string;
-  status: string;
-  createdAt: string;
-  startedAt: string | null;
-  finishedAt: string | null;
-  guildId: string | null;
-  summary: string;
-  errorMessage: string | null;
-};
-
-export type JobHistoryResponse = {
-  jobs: JobHistoryItem[];
-};
-
-export type GuildWorkflowSettings = {
-  discordGuildId: string;
-  defaultTargetChannels: string[];
-  inactiveExcludedCategories: string[];
-};
-
-export type GuildWorkflowSettingsResponse = {
-  settings: GuildWorkflowSettings;
-};
-
-export type UpdateGuildWorkflowSettingsRequest = {
-  defaultTargetChannels: string[];
-  inactiveExcludedCategories: string[];
-};
-
-export type IgnoredUser = {
-  id: string;
-  discordUserId: string;
-  username: string | null;
-  createdAt: string;
-};
-
-export type IgnoredUsersResponse = {
-  users: IgnoredUser[];
-  count: number;
-};
-
-export type ImportIgnoredUsersResponse = {
-  message: string;
-  addedCount: number;
-  skippedCount: number;
-  totalCount: number;
 };
