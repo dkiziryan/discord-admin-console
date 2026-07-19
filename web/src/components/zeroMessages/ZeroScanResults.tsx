@@ -7,6 +7,7 @@ import { ResultTile } from "../shared/ResultTile";
 
 const CHANNEL_PREVIEW_LIMIT = 10;
 const CHANNEL_PAGE_SIZE = 10;
+const EMPTY_CHANNEL_COVERAGE: ScanResponse["data"]["channelCoverage"] = [];
 
 type ResultSubpage = "summary" | "coverage" | "skipped";
 
@@ -27,7 +28,7 @@ export const ZeroScanResults = ({
   const hasProcessedChannels = data.processedChannels.length > 0;
   const hasSkippedChannels = data.skippedChannels.length > 0;
   const excludedCategories = data.excludedCategories ?? [];
-  const channelCoverage = data.channelCoverage ?? [];
+  const channelCoverage = data.channelCoverage ?? EMPTY_CHANNEL_COVERAGE;
   const coveragePreview = channelCoverage.slice(0, CHANNEL_PREVIEW_LIMIT);
   const skippedPreview = data.skippedChannels.slice(0, CHANNEL_PREVIEW_LIMIT);
   const coverageHasFullView = channelCoverage.length > CHANNEL_PREVIEW_LIMIT;
