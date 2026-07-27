@@ -51,6 +51,10 @@ export const registerInactiveScanRoute = (
       req.body?.countReactionsAsActivity === undefined
         ? true
         : Boolean(req.body.countReactionsAsActivity);
+    const countThreadCreationAsActivity =
+      req.body?.countThreadCreationAsActivity === undefined
+        ? true
+        : Boolean(req.body.countThreadCreationAsActivity);
     const maxMessagesPerChannel = parseMaxMessagesPerChannel(
       req.body?.maxMessagesPerChannel,
     );
@@ -111,6 +115,7 @@ export const registerInactiveScanRoute = (
           days: requestedDays,
           excludedCategories,
           countReactionsAsActivity,
+          countThreadCreationAsActivity,
           ...(maxMessagesPerChannel ? { maxMessagesPerChannel } : {}),
           guildId: activeGuildId,
         },
@@ -154,6 +159,7 @@ export const registerInactiveScanRoute = (
           days: requestedDays,
           excludedCategories,
           countReactionsAsActivity,
+          countThreadCreationAsActivity,
           maxMessagesPerChannel,
           isCancelled: inactiveController.isCancelled,
           progressCallbacks: {

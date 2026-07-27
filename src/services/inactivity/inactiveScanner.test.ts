@@ -39,6 +39,8 @@ type FakeThread = {
   type: number;
   parent: FakeTextChannel | null;
   archiveTimestamp: number;
+  createdTimestamp: number | null;
+  ownerId: string | null;
   isTextBased: () => boolean;
   permissionsFor: () => { has: () => boolean };
   messages: {
@@ -163,6 +165,8 @@ const createThread = (options: {
   parent?: FakeTextChannel | null;
   type?: number;
   archiveTimestamp?: number;
+  createdTimestamp?: number | null;
+  ownerId?: string | null;
 }): FakeThread => {
   return {
     id: options.id,
@@ -170,6 +174,8 @@ const createThread = (options: {
     type: options.type ?? 11,
     parent: options.parent ?? null,
     archiveTimestamp: options.archiveTimestamp ?? Date.now(),
+    createdTimestamp: options.createdTimestamp ?? Date.now(),
+    ownerId: options.ownerId ?? null,
     isTextBased: () => true,
     permissionsFor: () => ({
       has: () => true,
@@ -510,6 +516,96 @@ test("scanInactiveMembers counts public thread messages as activity", async () =
   );
   assert.equal(result.lastActivityByMemberId.get("member-thread-active"), "message");
   assert.ok(result.processedChannels.includes("thread marketplace / wtb-shoes"));
+});
+
+test("scanInactiveMembers counts recent public thread creation as activity by default", async () => {
+  const now = Date.now();
+  const oldJoin = now - 120 * 24 * 60 * 60 * 1000;
+  const recentThreadCreation = now - 5 * 24 * 60 * 60 * 1000;
+
+  const parentChannel = createTextChannel({
+    id: "channel-market",
+    name: "marketplace",
+  });
+  const activeThread = createThread({
+    id: "thread-created",
+    name: "new-listing",
+    parent: parentChannel,
+    createdTimestamp: recentThreadCreation,
+    ownerId: "member-thread-owner",
+  });
+
+  const guild = createGuild({
+    members: [
+      {
+        id: "member-thread-owner",
+        user: { bot: false, tag: "owner#1234" },
+        displayName: "Thread Owner",
+        joinedTimestamp: oldJoin,
+      },
+      {
+        id: "member-inactive",
+        user: { bot: false, tag: "inactive#1234" },
+        displayName: "Inactive User",
+        joinedTimestamp: oldJoin,
+      },
+    ],
+    channels: [parentChannel],
+    activeThreads: [activeThread],
+  });
+
+  const result = await scanInactiveMembers(createClient(guild) as never, {
+    guildId: "123",
+    discordUserId: "456",
+    days: 30,
+    ignoredUserIds: new Set(),
+  });
+
+  assert.equal(
+    result.inactiveMembers.some((member) => member.id === "member-thread-owner"),
+    false,
+  );
+  assert.equal(result.lastActivityByMemberId.get("member-thread-owner"), "thread");
+});
+
+test("scanInactiveMembers can ignore thread creation as activity", async () => {
+  const now = Date.now();
+  const oldJoin = now - 120 * 24 * 60 * 60 * 1000;
+
+  const parentChannel = createTextChannel({
+    id: "channel-market",
+    name: "marketplace",
+  });
+  const activeThread = createThread({
+    id: "thread-created",
+    name: "new-listing",
+    parent: parentChannel,
+    ownerId: "member-thread-owner",
+  });
+
+  const guild = createGuild({
+    members: [
+      {
+        id: "member-thread-owner",
+        user: { bot: false, tag: "owner#1234" },
+        displayName: "Thread Owner",
+        joinedTimestamp: oldJoin,
+      },
+    ],
+    channels: [parentChannel],
+    activeThreads: [activeThread],
+  });
+
+  const result = await scanInactiveMembers(createClient(guild) as never, {
+    guildId: "123",
+    discordUserId: "456",
+    days: 30,
+    countThreadCreationAsActivity: false,
+    ignoredUserIds: new Set(),
+  });
+
+  assert.equal(result.inactiveMembers[0]?.id, "member-thread-owner");
+  assert.equal(result.lastActivityByMemberId.has("member-thread-owner"), false);
 });
 
 test("scanInactiveMembers counts archived public thread messages as activity", async () => {

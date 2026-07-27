@@ -8,6 +8,7 @@ import {
   ensureGuildMembersFetched,
   extractMembers,
   fetchGuild,
+  markRecentThreadOwnersActive,
   resolveGuildMe,
   resolveScanTargetLabel,
   resolveTargetChannels,
@@ -39,6 +40,7 @@ export const scanInactiveMembers = async (
     days,
     excludedCategories = [],
     countReactionsAsActivity = true,
+    countThreadCreationAsActivity = true,
     maxMessagesPerChannel,
     ignoredUserIds: providedIgnoredUserIds,
     progressCallbacks,
@@ -142,6 +144,15 @@ export const scanInactiveMembers = async (
 
     return true;
   });
+
+  if (countThreadCreationAsActivity) {
+    markRecentThreadOwnersActive(
+      targetChannels,
+      cutoff,
+      remainingIds,
+      lastActivityByMemberId,
+    );
+  }
 
   const totalChannels = targetChannels.length;
   let nextChannelIndex = 0;

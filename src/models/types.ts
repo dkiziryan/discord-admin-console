@@ -93,13 +93,14 @@ export type ScanInactiveMembersOptions = {
   days: number;
   excludedCategories?: string[];
   countReactionsAsActivity?: boolean;
+  countThreadCreationAsActivity?: boolean;
   maxMessagesPerChannel?: number;
   ignoredUserIds?: Set<string>;
   progressCallbacks?: ScanProgressCallbacks;
   isCancelled?: () => boolean;
 };
 
-export type LastActivityType = "none" | "message" | "reaction";
+export type LastActivityType = "none" | "message" | "reaction" | "thread";
 
 export type ScanInactiveMembersResult = {
   guildName: string;

@@ -15,6 +15,8 @@ const FAST_SCAN_MAX_MESSAGES_PER_CHANNEL = 5_000;
 export const InactiveScanPanel = () => {
   const [days, setDays] = useState(180);
   const [countReactionsAsActivity, setCountReactionsAsActivity] = useState(false);
+  const [countThreadCreationAsActivity, setCountThreadCreationAsActivity] =
+    useState(true);
   const [fastScan, setFastScan] = useState(false);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -80,6 +82,7 @@ export const InactiveScanPanel = () => {
       await requestInactiveScan({
         days,
         countReactionsAsActivity,
+        countThreadCreationAsActivity,
         maxMessagesPerChannel: fastScan
           ? FAST_SCAN_MAX_MESSAGES_PER_CHANNEL
           : undefined,
@@ -183,6 +186,17 @@ export const InactiveScanPanel = () => {
             disabled={loading}
           />
           <span>Count reactions as activity</span>
+        </label>
+        <label className={styles.checkboxRow}>
+          <input
+            type="checkbox"
+            checked={countThreadCreationAsActivity}
+            onChange={(event) =>
+              setCountThreadCreationAsActivity(event.target.checked)
+            }
+            disabled={loading}
+          />
+          <span>Count thread creation as activity</span>
         </label>
         <label className={styles.checkboxRow}>
           <input

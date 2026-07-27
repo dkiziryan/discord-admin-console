@@ -231,6 +231,30 @@ export const resolveScanTargetLabel = (
   return `thread ${channel.name}`;
 };
 
+export const markRecentThreadOwnersActive = (
+  channels: GuildTextBasedChannel[],
+  cutoff: Date,
+  remainingIds: Set<string>,
+  lastActivityByMemberId: Map<string, LastActivityType>,
+): void => {
+  for (const channel of channels) {
+    if (!isThread(channel)) {
+      continue;
+    }
+
+    const ownerId = channel.ownerId;
+    const createdTimestamp = channel.createdTimestamp;
+    if (
+      ownerId &&
+      createdTimestamp !== null &&
+      createdTimestamp >= cutoff.getTime() &&
+      remainingIds.delete(ownerId)
+    ) {
+      lastActivityByMemberId.set(ownerId, "thread");
+    }
+  }
+};
+
 const resolveCategoryName = (
   channel: GuildTextBasedChannel | AnyThreadChannel,
 ): string | null => {

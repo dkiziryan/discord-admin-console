@@ -70,6 +70,10 @@ describe("InactiveScanPanel", () => {
       "checked",
       false,
     );
+    expect(screen.getByLabelText(/Count thread creation/)).toHaveProperty(
+      "checked",
+      true,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Scan inactive members" }));
 
@@ -77,6 +81,7 @@ describe("InactiveScanPanel", () => {
     expect(requestInactiveScan).toHaveBeenCalledWith({
       days: 180,
       countReactionsAsActivity: false,
+      countThreadCreationAsActivity: true,
       maxMessagesPerChannel: undefined,
     });
   });
@@ -92,6 +97,7 @@ describe("InactiveScanPanel", () => {
     expect(requestInactiveScan).toHaveBeenCalledWith({
       days: 365,
       countReactionsAsActivity: false,
+      countThreadCreationAsActivity: true,
       maxMessagesPerChannel: undefined,
     });
   });
