@@ -116,7 +116,11 @@ export const RemoveThreadsByTagPanel = () => {
       });
       setResult(response);
       setPreview(null);
-      setStatusMessage(response.message);
+      if (response.data.failures.length > 0) {
+        setErrorMessage(response.message);
+      } else {
+        setStatusMessage(response.message);
+      }
     } catch (error) {
       setErrorMessage((error as Error).message);
     } finally {

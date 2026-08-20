@@ -99,5 +99,5 @@
 }
 
 .failures {
-  color: var(--discord-danger);
+  color: var(--discord-red);
 }

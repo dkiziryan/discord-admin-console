@@ -55,6 +55,18 @@ const deletedResponse: RemoveThreadsByTagResponse = {
   },
 };
 
+const failedResponse: RemoveThreadsByTagResponse = {
+  message: "Archived 1 thread(s) tagged WTB. 1 failed.",
+  data: {
+    ...previewResponse.data,
+    failures: ["thread-2: Missing Access"],
+    matchingThreads: [],
+    moreCount: 0,
+    processedCount: 1,
+    totalMatchingCount: 2,
+  },
+};
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -109,5 +121,36 @@ describe("RemoveThreadsByTagPanel", () => {
         threadIds: ["thread-1", "thread-2"],
       });
     });
+  });
+
+  it("renders an action result with failures as an error", async () => {
+    vi.mocked(requestRemoveThreadsByTag)
+      .mockResolvedValueOnce(previewResponse)
+      .mockResolvedValueOnce(failedResponse);
+
+    render(<RemoveThreadsByTagPanel />);
+
+    fireEvent.change(screen.getByLabelText("Thread tag"), {
+      target: { value: "wtb" },
+    });
+    fireEvent.change(screen.getByLabelText("Batch limit"), {
+      target: { value: "2" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Preview matching threads" }),
+    );
+
+    await screen.findByText("Wanted boots");
+    fireEvent.click(screen.getByRole("button", { name: "Archive all 2" }));
+    fireEvent.change(
+      screen.getByLabelText("Previewed thread count confirmation"),
+      { target: { value: "2" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Archive threads" }));
+
+    const errorStatus = await screen.findByText(failedResponse.message);
+    expect(errorStatus.classList.contains("error")).toBe(true);
+    expect(errorStatus.classList.contains("success")).toBe(false);
+    expect(screen.getByText("thread-2: Missing Access")).toBeTruthy();
   });
 });
