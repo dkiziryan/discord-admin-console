@@ -9,6 +9,7 @@ import { ZeroMessageScanner } from "../zeroMessages/ZeroMessageScanner";
 import { ActivityHistoryPanel } from "../history/ActivityHistoryPanel";
 import { ServerSettingsPanel } from "../settings/ServerSettingsPanel";
 import { CsvExportsPanel } from "../csv/CsvExportsPanel";
+import { RemoveThreadsByTagPanel } from "../threads/RemoveThreadsByTagPanel";
 import type { JobHistoryItem } from "../../models/types";
 import type { AuthUser } from "../../services/auth/auth";
 import { fetchJobHistory } from "../../services/jobs/jobHistory";
@@ -25,6 +26,7 @@ export type PanelKey =
   | "csv"
   | "roles"
   | "archive"
+  | "threadTags"
   | "settings"
   | "activity";
 
@@ -126,6 +128,12 @@ export const Dashboard = ({
         description:
           "Find channels without recent activity and move them into an archive category.",
         component: <ArchiveChannelsPanel />,
+      },
+      threadTags: {
+        title: "Remove threads by tag",
+        description:
+          "Preview a limited batch of forum threads with a matching tag, then archive or delete them.",
+        component: <RemoveThreadsByTagPanel />,
       },
       settings: {
         title: "Server settings",

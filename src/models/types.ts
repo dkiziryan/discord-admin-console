@@ -34,9 +34,14 @@ export type {
   KickFromCsvRequest,
   KickFromCsvResponse,
   LocalDevSettings,
+  RemoveThreadsByTagRequest,
+  RemoveThreadsByTagResponse,
+  RemoveThreadsByTagResult,
   ScanResponse,
   ScanStatus,
   ScanZeroMessagesResponse,
+  ThreadByTagAction,
+  ThreadByTagSummary,
   UpdateGuildWorkflowSettingsRequest,
   ZeroMessageScanMode,
   ZeroMessagesRequest,
@@ -129,4 +134,13 @@ export type ArchiveChannelsOptions = {
   dryRun?: boolean;
   action?: "archive" | "delete";
   excludedCategories?: string[];
+};
+
+export type RemoveThreadsByTagOptions = {
+  guildId: string;
+  tag: string;
+  limit: number;
+  threadIds?: string[];
+  dryRun?: boolean;
+  action?: "archive" | "delete";
 };

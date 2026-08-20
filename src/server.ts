@@ -85,6 +85,7 @@ const RATE_LIMITED_API_WORKFLOW_PATHS = new Set([
   "/cleanup-roles",
   "/guild-settings",
   "/inactive-channels",
+  "/threads/by-tag",
   "/ignored-users",
   "/ignored-users/import",
   "/zero-messages",
@@ -273,6 +274,7 @@ export const startHttpServer = (
   const isInactiveProcessingByGuild = new Map<string, boolean>();
   const isRoleCleanupProcessingByGuild = new Map<string, boolean>();
   const isChannelArchiveProcessingByGuild = new Map<string, boolean>();
+  const isThreadRemovalProcessingByGuild = new Map<string, boolean>();
   const activeCancellationByGuild = new Map<string, ScanCancellationController>();
   const inactiveCancellationByGuild = new Map<
     string,
@@ -482,6 +484,7 @@ export const startHttpServer = (
     isKickProcessingByGuild,
     isProcessingByGuild,
     isRoleCleanupProcessingByGuild,
+    isThreadRemovalProcessingByGuild,
     kickCancellationByGuild,
     parseMaxMessagesPerChannel,
     requireAuthenticatedDiscordUserId,

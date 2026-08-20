@@ -151,6 +151,8 @@ const buildJobSummary = (
       return "Remove empty roles";
     case "archive_channels":
       return "Archive inactive channels";
+    case "remove_threads_by_tag":
+      return "Remove threads by tag";
     default:
       return "Dashboard action";
   }

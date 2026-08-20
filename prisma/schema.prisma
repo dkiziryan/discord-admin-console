@@ -21,6 +21,7 @@ enum JobType {
   kick_csv
   cleanup_roles
   archive_channels
+  remove_threads_by_tag
 }
 
 enum JobStatus {

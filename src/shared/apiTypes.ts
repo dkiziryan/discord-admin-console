@@ -251,3 +251,39 @@ export type ArchiveChannelsResponse = {
     days: number;
   };
 };
+
+export type ThreadByTagAction = "archive" | "delete";
+
+export type RemoveThreadsByTagRequest = {
+  tag: string;
+  limit: number;
+  threadIds?: string[];
+  dryRun?: boolean;
+  action?: ThreadByTagAction;
+};
+
+export type ThreadByTagSummary = {
+  id: string;
+  name: string;
+  parentChannelId: string;
+  parentChannelName: string;
+  archived: boolean;
+};
+
+export type RemoveThreadsByTagResult = {
+  tag: string;
+  action: ThreadByTagAction;
+  matchingThreads: ThreadByTagSummary[];
+  totalMatchingCount: number;
+  moreCount: number;
+  processedCount: number;
+  alreadyArchivedCount: number;
+  failures: string[];
+};
+
+export type RemoveThreadsByTagResponse = {
+  message: string;
+  data: RemoveThreadsByTagResult & {
+    limit: number;
+  };
+};

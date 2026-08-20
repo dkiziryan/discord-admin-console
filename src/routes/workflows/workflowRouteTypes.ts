@@ -16,6 +16,7 @@ export type WorkflowRouteDependencies = {
   isKickProcessingByGuild: Map<string, boolean>;
   isProcessingByGuild: Map<string, boolean>;
   isRoleCleanupProcessingByGuild: Map<string, boolean>;
+  isThreadRemovalProcessingByGuild: Map<string, boolean>;
   kickCancellationByGuild: Map<string, ScanCancellationController>;
   parseMaxMessagesPerChannel: (value: unknown) => number | undefined;
   requireAuthenticatedDiscordUserId: (
