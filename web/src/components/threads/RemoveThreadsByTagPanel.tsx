@@ -200,6 +200,9 @@ export const RemoveThreadsByTagPanel = () => {
                 <small>
                   #{thread.parentChannelName}
                   {thread.archived ? " · Already archived" : ""}
+                  {thread.createdAt
+                    ? ` · Created ${new Date(thread.createdAt).toLocaleString()}`
+                    : " · Creation date unavailable"}
                 </small>
               </li>
             ))}

@@ -268,6 +268,7 @@ export type ThreadByTagSummary = {
   parentChannelId: string;
   parentChannelName: string;
   archived: boolean;
+  createdAt: string | null;
 };
 
 export type RemoveThreadsByTagResult = {

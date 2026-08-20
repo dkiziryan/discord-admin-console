@@ -28,6 +28,7 @@ type FakeThread = {
   appliedTags: string[];
   archived: boolean;
   archiveTimestamp: number | null;
+  createdTimestamp: number | null;
   setArchived: () => Promise<void>;
   delete: () => Promise<void>;
 };
@@ -62,6 +63,7 @@ const createThread = (options: {
   parent: FakeParent;
   appliedTags: string[];
   archived?: boolean;
+  createdTimestamp?: number | null;
   onArchive?: () => void;
   onDelete?: () => void;
 }): FakeThread => ({
@@ -74,6 +76,7 @@ const createThread = (options: {
   appliedTags: options.appliedTags,
   archived: options.archived ?? false,
   archiveTimestamp: options.archived ? Date.now() : null,
+  createdTimestamp: options.createdTimestamp ?? 1_000,
   setArchived: async () => {
     options.onArchive?.();
   },
@@ -140,6 +143,7 @@ test("removeThreadsByTag matches applied tag IDs case-insensitively and caps the
     name: "Looking for boots",
     parent: firstParent,
     appliedTags: ["wtb-a"],
+    createdTimestamp: 1_000,
   });
   const titleOnlyMatch = createThread({
     id: "thread-2",
@@ -153,6 +157,7 @@ test("removeThreadsByTag matches applied tag IDs case-insensitively and caps the
     parent: secondParent,
     appliedTags: ["wtb-b"],
     archived: true,
+    createdTimestamp: 2_000,
   });
   secondParent.archivedThreads.push(archivedMatch);
   const client = createClient({
@@ -169,7 +174,11 @@ test("removeThreadsByTag matches applied tag IDs case-insensitively and caps the
 
   assert.equal(result.totalMatchingCount, 2);
   assert.equal(result.matchingThreads.length, 1);
-  assert.equal(result.matchingThreads[0]?.id, "thread-1");
+  assert.equal(result.matchingThreads[0]?.id, "thread-3");
+  assert.equal(
+    result.matchingThreads[0]?.createdAt,
+    new Date(2_000).toISOString(),
+  );
   assert.equal(result.moreCount, 1);
 });
 

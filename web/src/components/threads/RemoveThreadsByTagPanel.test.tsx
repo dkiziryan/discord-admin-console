@@ -21,6 +21,7 @@ const previewResponse: RemoveThreadsByTagResponse = {
     matchingThreads: [
       {
         archived: false,
+        createdAt: "2026-08-20T22:18:28.000Z",
         id: "thread-1",
         name: "Wanted boots",
         parentChannelId: "forum-1",
@@ -28,6 +29,7 @@ const previewResponse: RemoveThreadsByTagResponse = {
       },
       {
         archived: true,
+        createdAt: "2026-08-19T22:18:28.000Z",
         id: "thread-2",
         name: "Wanted jacket",
         parentChannelId: "forum-2",

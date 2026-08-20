@@ -49,6 +49,12 @@ export const findThreadsByTag = async (
   }
 
   return [...matches.values()].sort((a, b) => {
+    const createdAtComparison =
+      resolveCreatedTimestamp(b) - resolveCreatedTimestamp(a);
+    if (createdAtComparison !== 0) {
+      return createdAtComparison;
+    }
+
     const parentComparison = a.parentChannelName.localeCompare(
       b.parentChannelName,
     );
@@ -165,7 +171,20 @@ const summarizeThread = (
   parentChannelId: parent.id,
   parentChannelName: parent.name,
   archived: Boolean(thread.archived),
+  createdAt:
+    thread.createdTimestamp === null
+      ? null
+      : new Date(thread.createdTimestamp).toISOString(),
 });
+
+const resolveCreatedTimestamp = (thread: ThreadByTagSummary): number => {
+  if (!thread.createdAt) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const timestamp = Date.parse(thread.createdAt);
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+};
 
 const isThreadOnlyChannel = (
   channel: unknown,
