@@ -28,6 +28,54 @@ export type DiscordAuthUser = {
 
 const DISCORD_API_BASE_URL = "https://discord.com/api/v10";
 
+const TOKEN_ERROR_HINTS = {
+  invalid_client:
+    "Discord rejected the OAuth client credentials. Check DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET on the backend against the same Discord application's OAuth2 settings.",
+  invalid_grant:
+    "The authorization code is invalid, expired, already used, or does not match the client or redirect URI. Start a new login from the dashboard. If it persists, check DISCORD_OAUTH_REDIRECT_URI.",
+  invalid_request:
+    "Discord rejected the token request. Check the backend OAuth settings, including DISCORD_OAUTH_REDIRECT_URI.",
+  unauthorized_client:
+    "The Discord application is not authorized to use this OAuth grant. Check its OAuth2 settings.",
+  unsupported_grant_type:
+    "Discord rejected the OAuth grant type. Check the backend token request.",
+  invalid_scope:
+    "Discord rejected the requested OAuth scope. Check the application's OAuth2 settings.",
+} as const;
+
+const buildTokenExchangeError = async (response: Response): Promise<Error> => {
+  const payload: unknown = await response.json().catch(() => null);
+  const oauthError =
+    payload !== null &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    typeof payload.error === "string" &&
+    Object.hasOwn(TOKEN_ERROR_HINTS, payload.error)
+      ? (payload.error as keyof typeof TOKEN_ERROR_HINTS)
+      : null;
+
+  // Only log known error codes. Raw response bodies may contain credentials.
+  console.error("Discord token exchange failed.", {
+    status: response.status,
+    oauthError: oauthError ?? "unknown",
+  });
+
+  let hint =
+    "Start a new login from the dashboard. If it persists, check the backend application logs.";
+  if (response.status === 429) {
+    hint =
+      "Discord is rate limiting login requests. Wait a few minutes, then start a new login from the dashboard.";
+  } else if (response.status >= 500) {
+    hint =
+      "Discord's token service is temporarily unavailable. Try a new login shortly.";
+  } else if (oauthError) {
+    hint = TOKEN_ERROR_HINTS[oauthError];
+  }
+
+  const details = `HTTP ${response.status}${oauthError ? `, ${oauthError}` : ""}`;
+  return new Error(`Discord token exchange failed (${details}). ${hint}`);
+};
+
 const getDiscordOAuthConfig = (): DiscordOAuthConfig => {
   const clientId = process.env.DISCORD_CLIENT_ID;
   const clientSecret = process.env.DISCORD_CLIENT_SECRET;
@@ -92,7 +140,7 @@ export const authenticateDiscordUser = async (
   });
 
   if (!tokenResponse.ok) {
-    throw new Error("Discord token exchange failed.");
+    throw await buildTokenExchangeError(tokenResponse);
   }
 
   const tokenData = (await tokenResponse.json()) as DiscordTokenResponse;
