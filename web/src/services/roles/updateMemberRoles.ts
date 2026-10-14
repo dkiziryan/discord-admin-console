@@ -1,4 +1,4 @@
-import type { MemberRoleOption, UpdateMemberRolesRequest, UpdateMemberRolesResponse } from "../../models/types";
+import type { MemberRoleJobStatus, MemberRoleOption, UpdateMemberRolesRequest } from "../../models/types";
 import { apiJson } from "../apiClient";
 
 export const fetchMemberRoles = () => apiJson<{ roles: MemberRoleOption[] }>("/api/member-roles", {
@@ -6,6 +6,13 @@ export const fetchMemberRoles = () => apiJson<{ roles: MemberRoleOption[] }>("/a
 });
 
 export const requestMemberRoleUpdate = (json: UpdateMemberRolesRequest) =>
-  apiJson<UpdateMemberRolesResponse>("/api/member-roles", {
-    method: "POST", json, errorMessage: "Failed to update member roles.",
+  apiJson<{ job: MemberRoleJobStatus }>("/api/member-roles", {
+    method: "POST", json, errorMessage: "Failed to start member role update.",
+    signal: AbortSignal.timeout(10_000),
+  });
+
+export const fetchMemberRoleStatus = () =>
+  apiJson<{ job: MemberRoleJobStatus | null }>("/api/member-roles/status", {
+    errorMessage: "Could not refresh role update progress.", cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
   });

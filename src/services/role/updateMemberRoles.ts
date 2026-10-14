@@ -1,6 +1,9 @@
 import { Routes, type APIGuildMember } from "discord-api-types/v10";
 import { PermissionFlagsBits, type Client } from "discord.js";
-import type { MemberRoleOption, UpdateMemberRolesRequest, UpdateMemberRolesResponse } from "../../shared/apiTypes";
+import { isProtectedMemberRoleName, memberRoleExclusions } from "../../shared/memberRolePolicy";
+import { emptyMemberRoleScanSummary, memberRoleSkipReason } from "./memberRoleEligibility";
+import { MEMBER_ROLE_BATCH_SIZE, processMemberRoleBatches } from "./memberRoleBatches";
+import type { MemberRoleProgress, MemberRoleOption, UpdateMemberRolesRequest, UpdateMemberRolesResponse } from "../../shared/apiTypes";
 
 export class RoleUpdateError extends Error {
   constructor(message: string, public readonly status = 400) { super(message); }
@@ -45,28 +48,48 @@ const roleContext = async (client: Client, guildId: string, actorId: string) => 
 export const listMemberRoles = async (client: Client, guildId: string, actorId: string): Promise<MemberRoleOption[]> => {
   const { guild, roles, canUpdate } = await roleContext(client, guildId, actorId);
   return [...roles.values()].filter(role => role.id !== guild.id)
-    .map(role => ({ id: role.id, name: role.name, canUpdate: canUpdate(role.id) }))
+    .map(role => ({ id: role.id, name: role.name, canUpdate: canUpdate(role.id) && !isProtectedMemberRoleName(role.name) }))
     .sort((a, b) => a.name.localeCompare(b.name));
 };
 
-const eligible = (member: APIGuildMember, request: UpdateMemberRolesRequest) =>
-  !!member.user && !member.user.bot &&
-  (request.userIds === undefined || request.userIds.includes(member.user.id)) &&
-  !request.excludedRoleIds.some(id => member.roles.includes(id)) &&
-  (request.action === "add" ? !member.roles.includes(request.roleId) : member.roles.includes(request.roleId));
-
 export const updateMemberRoles = async (
   client: Client, guildId: string, actorId: string, request: UpdateMemberRolesRequest,
+  onProgress: (progress: MemberRoleProgress) => void = () => undefined,
 ): Promise<UpdateMemberRolesResponse> => {
+  const scanSummary = emptyMemberRoleScanSummary();
+  const progress: MemberRoleProgress = {
+    scanSummary,
+    phase: "preparing", checkedCount: 0, matchedCount: 0, processedCount: 0,
+    updatedCount: 0, skippedCount: 0, failedCount: 0,
+    batchNumber: 0, totalBatches: 0, batchSize: MEMBER_ROLE_BATCH_SIZE,
+  };
+  const report = () => onProgress({ ...progress, scanSummary: { ...scanSummary } });
+  report();
   const { guild, roles, canUpdate } = await roleContext(client, guildId, actorId);
+  if (isProtectedMemberRoleName(roles.get(request.roleId)?.name ?? "")) {
+    throw new RoleUpdateError("Limited and in-between roles are protected and cannot be targets in this bulk workflow.");
+  }
+  request = { ...request, excludedRoleIds: memberRoleExclusions(request.excludedRoleIds, roles.values()) };
   if (!canUpdate(request.roleId)) throw new RoleUpdateError("The selected role cannot be managed by you and the bot.", 403);
   if (request.excludedRoleIds.some(id => !roles.has(id) || id === guildId)) {
     throw new RoleUpdateError("An excluded role no longer exists. Reload the role list.");
   }
+  progress.phase = "scanning";
+  report();
   // Read every page before writing, so an incomplete member scan cannot cause partial changes.
   const candidates: APIGuildMember[] = [];
   let after: string | undefined;
   let totalMembers = 0;
+  const seen = new Set<string>();
+  const inspect = (member: APIGuildMember) => {
+    const reason = memberRoleSkipReason(member, request);
+    const id = member.user!.id;
+    if (seen.has(id)) throw new Error("Discord returned duplicate members. No roles were changed; rerun the preview.");
+    seen.add(id);
+    totalMembers++;
+    if (reason) scanSummary[reason]++;
+    else candidates.push(member);
+  };
   if (request.userIds !== undefined) {
     // Resolve the entire explicit list before writing. Never fall back to all members.
     for (const id of request.userIds) {
@@ -79,33 +102,40 @@ export const updateMemberRoles = async (
       if (!member?.user || member.user.id !== id) {
         throw new RoleUpdateError(`Could not load user ${id} in this server. No roles were changed.`);
       }
-      totalMembers++;
-      if (eligible(member, request)) candidates.push(member);
+      scanSummary.pagesRead++;
+      inspect(member);
+      progress.checkedCount = totalMembers;
+      progress.matchedCount = candidates.length;
+      report();
     }
   } else while (true) {
     const query = new URLSearchParams({ limit: "1000" });
     if (after) query.set("after", after);
     const batch = await client.rest.get(Routes.guildMembers(guildId), { query }) as APIGuildMember[];
     if (!Array.isArray(batch)) throw new Error("Discord returned an invalid member list.");
-    totalMembers += batch.length;
-    candidates.push(...batch.filter(member => eligible(member, request)));
+    scanSummary.pagesRead++;
+    for (const member of batch) inspect(member);
+    progress.checkedCount = totalMembers;
+    progress.matchedCount = candidates.length;
+    report();
     if (batch.length < 1000) break;
     const lastId = batch.at(-1)?.user?.id;
     if (!lastId || (after && BigInt(lastId) <= BigInt(after))) throw new Error("Could not finish reading server members.");
     after = lastId;
   }
   const data: UpdateMemberRolesResponse["data"] = {
-    guildName: guild.name, roleName: roles.get(request.roleId)!.name,
+    guildName: guild.name, roleName: roles.get(request.roleId)!.name, scanSummary,
     totalMembers, matchedCount: candidates.length, updatedCount: 0, skippedCount: 0,
     previewNames: candidates.slice(0, 10).map(member => member.nick ?? member.user!.username), failures: [],
   };
   if (request.dryRun === false) {
-    for (const candidate of candidates) {
+    progress.totalBatches = Math.ceil(candidates.length / MEMBER_ROLE_BATCH_SIZE);
+    await processMemberRoleBatches(candidates, async candidate => {
       const id = candidate.user!.id;
       try {
         // Recheck exclusions immediately before each single-role mutation.
         const current = await client.rest.get(Routes.guildMember(guildId, id)) as APIGuildMember;
-        if (!eligible(current, request)) { data.skippedCount++; continue; }
+        if (memberRoleSkipReason(current, request)) { data.skippedCount++; return; }
         const route = Routes.guildMemberRole(guildId, id, request.roleId);
         const options = { reason: `Server Admin Console: ${request.action} role requested by ${actorId}` };
         if (request.action === "add") await client.rest.put(route, options);
@@ -113,10 +143,22 @@ export const updateMemberRoles = async (
         data.updatedCount++;
       } catch (error) {
         data.failures.push(`${candidate.user!.username} (${id}): ${(error as Error).message}`);
+      } finally {
+        progress.processedCount++;
+        progress.updatedCount = data.updatedCount;
+        progress.skippedCount = data.skippedCount;
+        progress.failedCount = data.failures.length;
+        report();
       }
-    }
+    }, (batchNumber, pausing) => {
+      progress.batchNumber = batchNumber;
+      progress.phase = pausing ? "pausing" : "updating";
+      report();
+    });
   }
+  progress.phase = "completed";
+  report();
   return { message: request.dryRun !== false
     ? `Dry run: ${data.matchedCount} member(s) match this role update. No roles were changed.`
-    : `Updated ${data.updatedCount} member(s); skipped ${data.skippedCount}; failed ${data.failures.length}.`, data };
+    : `Updated ${data.updatedCount} of ${data.matchedCount} matching member(s); skipped ${data.skippedCount} during recheck; failed ${data.failures.length}.${data.failures.length ? " Completed with errors. Preview remaining members before retrying." : ""}`, data };
 };

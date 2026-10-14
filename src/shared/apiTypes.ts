@@ -299,11 +299,19 @@ export type UpdateMemberRolesRequest = {
   dryRun?: boolean;
 };
 
+export type MemberRoleScanSummary = {
+  pagesRead: number;
+  bots: number;
+  excludedByRole: number;
+  noChangeNeeded: number;
+};
+
 export type UpdateMemberRolesResponse = {
   message: string;
   data: {
     guildName: string;
     roleName: string;
+    scanSummary?: MemberRoleScanSummary;
     totalMembers: number;
     matchedCount: number;
     updatedCount: number;
@@ -311,4 +319,30 @@ export type UpdateMemberRolesResponse = {
     previewNames: string[];
     failures: string[];
   };
+};
+
+export type MemberRoleProgress = {
+  scanSummary?: MemberRoleScanSummary;
+  phase: "preparing" | "scanning" | "updating" | "pausing" | "completed" | "failed";
+  checkedCount: number;
+  matchedCount: number;
+  processedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  batchNumber: number;
+  totalBatches: number;
+  batchSize: number;
+};
+
+export type MemberRoleJobStatus = MemberRoleProgress & {
+  id: string;
+  rateLimitedUntil?: string | null;
+  inProgress: boolean;
+  request: UpdateMemberRolesRequest;
+  startedAt: string;
+  updatedAt: string;
+  finishedAt: string | null;
+  result: UpdateMemberRolesResponse | null;
+  errorMessage: string | null;
 };

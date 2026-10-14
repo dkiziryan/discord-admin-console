@@ -1,4 +1,7 @@
 export type {
+  MemberRoleJobStatus,
+  MemberRoleProgress,
+  MemberRoleScanSummary,
   MemberRoleOption,
   UpdateMemberRolesRequest,
   UpdateMemberRolesResponse,
