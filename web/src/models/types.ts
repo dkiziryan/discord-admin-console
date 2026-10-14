@@ -1,4 +1,7 @@
 export type {
+  MemberRoleOption,
+  UpdateMemberRolesRequest,
+  UpdateMemberRolesResponse,
   ApiError,
   ArchiveChannelAction,
   ArchiveChannelsRequest,

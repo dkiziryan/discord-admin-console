@@ -1,5 +1,6 @@
 import type { Application } from "express";
 
+import { registerMemberRoleRoutes } from "./workflows/memberRoleRoute";
 import { registerChannelArchiveRoute } from "./workflows/channelArchiveRoute";
 import { registerInactiveScanRoute } from "./workflows/inactiveScanRoute";
 import { registerKickFromCsvRoute } from "./workflows/kickFromCsvRoute";
@@ -16,6 +17,7 @@ export const registerWorkflowRoutes = (
   dependencies: WorkflowRouteDependencies,
 ): void => {
   registerRoleCleanupRoute(app, dependencies);
+  registerMemberRoleRoutes(app, dependencies);
   registerChannelArchiveRoute(app, dependencies);
   registerThreadRemovalRoute(app, dependencies);
   registerZeroMessageRoute(app, dependencies);

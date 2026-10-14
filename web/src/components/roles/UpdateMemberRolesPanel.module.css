@@ -1,0 +1,9 @@
+.panel { display: flex; flex-direction: column; gap: 1.25rem; padding: 1.5rem; background: var(--discord-bg-raised); border: 1px solid var(--discord-border); border-radius: var(--discord-radius-lg); }
+.fields { display: flex; flex-direction: column; gap: 1rem; border: 0; padding: 0; min-width: 0; }
+.fields label { display: flex; flex-direction: column; gap: 0.5rem; }
+.fields select, .fields textarea { width: 100%; padding: 0.75rem; color: var(--discord-text); background: var(--discord-bg-floating); border: 1px solid var(--discord-border); border-radius: var(--discord-radius-md); }
+.fields small { color: var(--discord-text-muted); }
+.results { padding: 1rem; border: 1px solid var(--discord-border); border-radius: var(--discord-radius-md); background: var(--discord-bg-deep); }
+
+.fields .checkbox { flex-direction: row; align-items: center; }
+.fields textarea { box-sizing: border-box; resize: vertical; font: inherit; }

@@ -4,6 +4,7 @@ import styles from "./Dashboard.module.css";
 import { ArchiveChannelsPanel } from "../archive/ArchiveChannelsPanel";
 import { InactiveScanPanel } from "../inactivity/InactiveScanPanel";
 import { KickFromCsvPanel } from "../kick/KickFromCsvPanel";
+import { UpdateMemberRolesPanel } from "../roles/UpdateMemberRolesPanel";
 import { CleanupRolesPanel } from "../roles/CleanupRolesPanel";
 import { ZeroMessageScanner } from "../zeroMessages/ZeroMessageScanner";
 import { ActivityHistoryPanel } from "../history/ActivityHistoryPanel";
@@ -24,6 +25,7 @@ export type PanelKey =
   | "inactive"
   | "kick"
   | "csv"
+  | "updateRoles"
   | "roles"
   | "archive"
   | "threadTags"
@@ -116,6 +118,11 @@ export const Dashboard = ({
         description:
           "Open generated CSV files, search by username, and page through results.",
         component: <CsvExportsPanel />,
+      },
+      updateRoles: {
+        title: "Update member roles",
+        description: "Add or remove a role in bulk while excluding members with selected roles.",
+        component: <UpdateMemberRolesPanel />,
       },
       roles: {
         title: "Remove empty roles",

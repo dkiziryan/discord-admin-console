@@ -288,3 +288,27 @@ export type RemoveThreadsByTagResponse = {
     limit: number;
   };
 };
+
+export type MemberRoleOption = { id: string; name: string; canUpdate: boolean };
+
+export type UpdateMemberRolesRequest = {
+  userIds?: string[];
+  action: "add" | "remove";
+  roleId: string;
+  excludedRoleIds: string[];
+  dryRun?: boolean;
+};
+
+export type UpdateMemberRolesResponse = {
+  message: string;
+  data: {
+    guildName: string;
+    roleName: string;
+    totalMembers: number;
+    matchedCount: number;
+    updatedCount: number;
+    skippedCount: number;
+    previewNames: string[];
+    failures: string[];
+  };
+};
