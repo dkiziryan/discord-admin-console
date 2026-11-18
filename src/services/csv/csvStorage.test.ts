@@ -6,6 +6,7 @@ import path from "node:path";
 
 import {
   deleteScopedCsvFile,
+  listScopedCsvFiles,
   readScopedCsvFile,
   writeScopedCsvFile,
 } from "./csvStorage";
@@ -45,5 +46,42 @@ test("deleteScopedCsvFile removes a scoped local CSV", async () => {
     }
 
     await fs.rm(directory, { force: true, recursive: true });
+  }
+});
+
+test("listScopedCsvFiles honors the S3 URL style with a custom endpoint", async (t) => {
+  const originalEnv = process.env;
+  process.env = {
+    ...originalEnv,
+    CSV_STORAGE_DRIVER: "s3",
+    S3_ACCESS_KEY_ID: "test-access-key",
+    S3_BUCKET: "csv-bucket",
+    S3_ENDPOINT: "https://storage.example.test",
+    S3_REGION: "auto",
+    S3_SECRET_ACCESS_KEY: "test-secret-key",
+  };
+  t.after(() => {
+    process.env = originalEnv;
+  });
+
+  const scope = { discordUserId: "222", guildId: "111" };
+  const query = "?list-type=2&prefix=csv%2F111%2F222%2F";
+  const request = t.mock.method(globalThis, "fetch", async () => {
+    return new Response("<ListBucketResult/>");
+  });
+
+  for (const { setting, address } of [
+    { setting: "false", address: "https://csv-bucket.storage.example.test/" },
+    { setting: "true", address: "https://storage.example.test/csv-bucket" },
+    { setting: undefined, address: "https://storage.example.test/csv-bucket" },
+  ]) {
+    if (setting === undefined) {
+      delete process.env.S3_FORCE_PATH_STYLE;
+    } else {
+      process.env.S3_FORCE_PATH_STYLE = setting;
+    }
+
+    await listScopedCsvFiles(scope);
+    assert.equal(String(request.mock.calls.at(-1)?.arguments[0]), address + query);
   }
 });

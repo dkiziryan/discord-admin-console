@@ -326,16 +326,18 @@ type S3RequestOptions = {
 const getS3Config = (): S3Config => {
   const bucket = requiredEnv("S3_BUCKET");
   const region = process.env.S3_REGION?.trim() || "us-east-1";
+  const customEndpoint = process.env.S3_ENDPOINT?.trim();
+  const forcePathStyle = process.env.S3_FORCE_PATH_STYLE?.trim().toLowerCase();
   const endpoint =
-    process.env.S3_ENDPOINT?.trim() || `https://s3.${region}.amazonaws.com`;
+    customEndpoint || `https://s3.${region}.amazonaws.com`;
 
   return {
     accessKeyId: requiredEnv("S3_ACCESS_KEY_ID"),
     bucket,
     endpoint: endpoint.replace(/\/+$/, ""),
     forcePathStyle:
-      process.env.S3_FORCE_PATH_STYLE?.trim().toLowerCase() === "true" ||
-      Boolean(process.env.S3_ENDPOINT?.trim()),
+      forcePathStyle !== "false" &&
+      (forcePathStyle === "true" || Boolean(customEndpoint)),
     region,
     secretAccessKey: requiredEnv("S3_SECRET_ACCESS_KEY"),
   };
